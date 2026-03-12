@@ -1,0 +1,67 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: epic_docs_db
+    platform: linux/arm64
+    environment:
+      POSTGRES_DB: epic_docs_rag
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d epic_docs_rag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migration
+    container_name: epic_docs_migration
+    platform: linux/arm64
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/epic_docs_rag
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: epic_docs_app
+    platform: linux/arm64
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/epic_docs_rag
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - CRAWL_LIMIT=${CRAWL_LIMIT:-10}
+      - EMBED_MODEL_NAME=${EMBED_MODEL_NAME:-gemini-embedding-001}
+      - EMBED_QUOTA_RPM=${EMBED_QUOTA_RPM:-100}
+      - EMBED_QUOTA_TPM=${EMBED_QUOTA_TPM:-30000}
+      - EMBED_QUOTA_RPD=${EMBED_QUOTA_RPD:-1000}
+      - QUERY_MODEL_NAME=${QUERY_MODEL_NAME:-gemini-3.1-flash-lite-preview}
+      - QUERY_MODEL_FALLBACKS=${QUERY_MODEL_FALLBACKS:-gemini-2.5-flash}
+      - QUERY_MODEL_API_VERSION=${QUERY_MODEL_API_VERSION:-v1beta}
+      - QUERY_QUOTA_RPM=${QUERY_QUOTA_RPM:-15}
+      - QUERY_QUOTA_TPM=${QUERY_QUOTA_TPM:-250000}
+      - QUERY_QUOTA_RPD=${QUERY_QUOTA_RPD:-500}
+      - QUERY_QUOTA_OUTPUT_TOKEN_RESERVE=${QUERY_QUOTA_OUTPUT_TOKEN_RESERVE:-1024}
+      - RETRIEVE_THRESHOLD_DEFAULT=${RETRIEVE_THRESHOLD_DEFAULT:-0.55}
+      - CHAT_RETRIEVE_THRESHOLD=${CHAT_RETRIEVE_THRESHOLD:-0.6}
+      - SITEMAP_URL=${SITEMAP_URL:-https://dev.epicgames.com/community/api/documentation/sitemaps/unreal_engine/ue_getting_started/sitemap_1.xml}
+      - PRODUCT_FILTER=${PRODUCT_FILTER:-unreal-engine}
+    depends_on:
+      db:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
