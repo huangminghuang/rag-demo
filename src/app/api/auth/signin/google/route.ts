@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildGoogleAuthUrl, createOAuthState } from "@/lib/auth/googleOAuth";
 import { OAUTH_STATE_COOKIE, isProduction } from "@/lib/auth/config";
+import { logAuthEvent } from "@/lib/auth/audit";
 
 export async function GET() {
   try {
@@ -15,8 +16,10 @@ export async function GET() {
       path: "/",
       maxAge: 10 * 60,
     });
+    logAuthEvent("oauth_signin_start", { success: true, provider: "google" });
     return response;
   } catch (error) {
+    logAuthEvent("oauth_signin_start", { success: false, provider: "google", reason: "exception" });
     console.error("Google sign-in start error:", error);
     return NextResponse.json({ error: "Unable to start Google sign-in" }, { status: 500 });
   }

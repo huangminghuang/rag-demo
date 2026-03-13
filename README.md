@@ -137,3 +137,7 @@ Current auth endpoints:
 - `GET /api/auth/callback/google` (OAuth callback)
 - `POST /api/auth/signout` (clear session)
 - `GET /api/auth/me` (protected user endpoint)
+
+CSRF protection:
+- Mutating authenticated routes require `x-csrf-token` header to match `csrf_token` cookie.
+- The `csrf_token` cookie is set after sign-in/callback (and ensured on `GET /api/auth/me`).

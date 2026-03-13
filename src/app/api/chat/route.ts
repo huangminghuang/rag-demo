@@ -5,6 +5,7 @@ import { consumeQueryQuota, estimateQueryTokens, getQueryQuotaConfig } from "@/l
 import { isEmbeddingQuotaExceededError } from "@/lib/quota/embeddingQuota";
 import { getChatRetrieveThreshold } from "@/lib/retrieve/config";
 import { requireUser } from "@/lib/auth/guards";
+import { requireCsrf } from "@/lib/auth/csrf";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -48,6 +49,9 @@ function isFallbackResponse(text: string): boolean {
 
 export async function POST(req: Request) {
   try {
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
+
     const auth = await requireUser();
     if (!auth.ok) return auth.response;
 

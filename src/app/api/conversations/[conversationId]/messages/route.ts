@@ -3,13 +3,21 @@ import { db } from "@/lib/db";
 import { conversationMessages, conversations } from "@/lib/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { requireConversationOwner } from "@/lib/auth/guards";
+import { requireCsrf } from "@/lib/auth/csrf";
 
 interface RouteContext {
   params: Promise<{ conversationId: string }>;
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 export async function GET(_req: Request, context: RouteContext) {
   const { conversationId } = await context.params;
+  if (!isUuid(conversationId)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const auth = await requireConversationOwner(conversationId);
   if (!auth.ok) return auth.response;
 
@@ -28,7 +36,13 @@ export async function GET(_req: Request, context: RouteContext) {
 }
 
 export async function POST(req: Request, context: RouteContext) {
+  const csrfError = requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const { conversationId } = await context.params;
+  if (!isUuid(conversationId)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const auth = await requireConversationOwner(conversationId);
   if (!auth.ok) return auth.response;
 
@@ -39,6 +53,10 @@ export async function POST(req: Request, context: RouteContext) {
   if (!content || !content.trim()) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
+  const normalizedContent = content.trim();
+  if (normalizedContent.length > 8000) {
+    return NextResponse.json({ error: "Content is too long (max 8000 chars)" }, { status: 400 });
+  }
 
   const [created] = await db
     .insert(conversationMessages)
@@ -46,7 +64,7 @@ export async function POST(req: Request, context: RouteContext) {
       conversationId: auth.conversationId,
       userId: auth.user.id,
       role,
-      content: content.trim(),
+      content: normalizedContent,
     })
     .returning({
       id: conversationMessages.id,

@@ -30,6 +30,16 @@ export default function ChatBox() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const getCsrfToken = (): string | null => {
+    if (typeof document === "undefined") return null;
+    const token = document.cookie
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("csrf_token="))
+      ?.split("=")[1];
+    return token ? decodeURIComponent(token) : null;
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -71,7 +81,10 @@ export default function ChatBox() {
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": getCsrfToken() || "",
+        },
         body: JSON.stringify({ messages: [...messages, userMsg] }),
       });
 
@@ -105,7 +118,11 @@ export default function ChatBox() {
     if (isIngesting || authStatus !== "authenticated") return;
     setIsIngesting(true);
     try {
-      const response = await fetch("/api/ingest", { method: "POST" });
+      const csrfToken = getCsrfToken();
+      const response = await fetch("/api/ingest", {
+        method: "POST",
+        headers: csrfToken ? { "x-csrf-token": csrfToken } : undefined,
+      });
       if (response.status === 401) {
         setAuthStatus("unauthenticated");
         setCurrentUser(null);
@@ -134,7 +151,11 @@ export default function ChatBox() {
     if (isSigningOut) return;
     setIsSigningOut(true);
     try {
-      await fetch("/api/auth/signout", { method: "POST" });
+      const csrfToken = getCsrfToken();
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        headers: csrfToken ? { "x-csrf-token": csrfToken } : undefined,
+      });
       setCurrentUser(null);
       setAuthStatus("unauthenticated");
       setMessages([{ role: "assistant", content: "You have signed out. Sign in to continue chatting." }]);
