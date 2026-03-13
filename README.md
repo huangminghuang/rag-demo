@@ -16,7 +16,14 @@ docker compose up -d db
 docker compose run --rm migration
 ```
 
-3. Verify database is running:
+3. (Optional) Seed a default admin user for local testing:
+
+```bash
+# set DEFAULT_ADMIN_EMAIL in .env first
+docker compose run --rm seed_admin
+```
+
+4. Verify database is running:
 
 ```bash
 docker compose ps
@@ -141,3 +148,28 @@ Current auth endpoints:
 CSRF protection:
 - Mutating authenticated routes require `x-csrf-token` header to match `csrf_token` cookie.
 - The `csrf_token` cookie is set after sign-in/callback (and ensured on `GET /api/auth/me`).
+
+## Default Admin Setup (Local Testing)
+
+Use Docker Compose seed service to provision or promote one email as admin.
+
+1. Set in `.env`:
+
+```bash
+DEFAULT_ADMIN_EMAIL=you@example.com
+DEFAULT_ADMIN_NAME=Local Admin
+```
+
+2. Run DB + migration + seed:
+
+```bash
+docker compose up -d db
+docker compose run --rm migration
+docker compose run --rm seed_admin
+```
+
+3. Sign in with Google using the same email as `DEFAULT_ADMIN_EMAIL`.
+
+Notes:
+- Seeding is an upsert by email and enforces `role='admin'`.
+- `docker compose up app` now runs `seed_admin` before app startup.

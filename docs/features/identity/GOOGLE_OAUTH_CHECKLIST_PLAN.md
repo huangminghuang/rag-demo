@@ -42,11 +42,11 @@
 - [x] Add behavior for unauthenticated user (redirect or disabled chat).
 - [x] Ensure existing chat UX remains simple after auth.
 - [x] Document chat-to-conversation transition flow: `docs/features/identity/CHAT_TO_CONVERSATION_TRANSITION.md`.
-- [ ] Add left pane conversation UI (list/create/select conversation).
-- [ ] Load current user's past conversations into the left pane after login via `GET /api/conversations`.
-- [ ] On click in left pane, set active conversation and load messages via `GET /api/conversations/[conversationId]/messages`.
-- [ ] Persist user and assistant turns via `POST /api/conversations/[conversationId]/messages`.
-- [ ] Connect chat flow to active `conversationId` lifecycle.
+- [x] Add left pane conversation UI (list/create/select conversation).
+- [x] Load current user's past conversations into the left pane after login via `GET /api/conversations`.
+- [x] On click in left pane, set active conversation and load messages via `GET /api/conversations/[conversationId]/messages`.
+- [x] Persist user and assistant turns via `POST /api/conversations/[conversationId]/messages`.
+- [x] Connect chat flow to active `conversationId` lifecycle.
 
 ## 7. Security Hardening
 - [x] Use secure, HTTP-only cookies.

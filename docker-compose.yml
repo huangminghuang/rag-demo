@@ -30,6 +30,24 @@ services:
       db:
         condition: service_healthy
 
+  seed_admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migration
+    container_name: epic_docs_seed_admin
+    platform: linux/arm64
+    command: ["npx", "tsx", "src/lib/db/seedDefaultAdmin.ts"]
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/epic_docs_rag
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-}
+      - DEFAULT_ADMIN_NAME=${DEFAULT_ADMIN_NAME:-Default Admin}
+    depends_on:
+      db:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+
   app:
     build:
       context: .
@@ -68,6 +86,8 @@ services:
       db:
         condition: service_healthy
       migration:
+        condition: service_completed_successfully
+      seed_admin:
         condition: service_completed_successfully
 
 volumes:
