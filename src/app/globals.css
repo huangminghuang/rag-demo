@@ -211,6 +211,63 @@ body {
   font-size: 0.9rem;
 }
 
+.auth-caption {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  opacity: 0.78;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ingest-btn {
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.ingest-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ghost-btn {
+  padding: 0.38rem 0.7rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.ghost-btn:hover {
+  background: var(--surface-muted);
+}
+
+.ghost-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-banner {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0.75rem;
+  font-size: 0.88rem;
+}
+
 @media (max-width: 640px) {
   .chat-container {
     padding: 0.65rem 0.65rem 0.85rem;
@@ -233,5 +290,11 @@ body {
 
   .input-area button {
     padding: 0.8rem 1rem;
+  }
+
+  .ingest-panel {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 }

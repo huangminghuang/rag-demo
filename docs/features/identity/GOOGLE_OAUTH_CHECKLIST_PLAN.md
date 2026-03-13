@@ -37,10 +37,10 @@
 - [x] Add standard `403/404` behavior for unauthorized resource access.
 
 ## 6. UI and Session UX
-- [ ] Add "Sign in with Google" UI flow.
-- [ ] Add logged-in user indicator and sign-out control.
-- [ ] Add behavior for unauthenticated user (redirect or disabled chat).
-- [ ] Ensure existing chat UX remains simple after auth.
+- [x] Add "Sign in with Google" UI flow.
+- [x] Add logged-in user indicator and sign-out control.
+- [x] Add behavior for unauthenticated user (redirect or disabled chat).
+- [x] Ensure existing chat UX remains simple after auth.
 
 ## 7. Security Hardening
 - [ ] Use secure, HTTP-only cookies.
