@@ -31,10 +31,10 @@
 - [x] Add migrations and verify schema in local DB.
 
 ## 5. Authorization Rules
-- [ ] Enforce `401` for unauthenticated access to protected routes.
-- [ ] Enforce owner-only access for conversations/messages.
-- [ ] Enforce role checks for admin-only operations (for example ingestion trigger).
-- [ ] Add standard `403/404` behavior for unauthorized resource access.
+- [x] Enforce `401` for unauthenticated access to protected routes.
+- [x] Enforce owner-only access for conversations/messages.
+- [x] Enforce role checks for admin-only operations (for example ingestion trigger).
+- [x] Add standard `403/404` behavior for unauthorized resource access.
 
 ## 6. UI and Session UX
 - [ ] Add "Sign in with Google" UI flow.

@@ -4,6 +4,7 @@ import { retrieveRelevantChunks } from "@/lib/retrieve";
 import { consumeQueryQuota, estimateQueryTokens, getQueryQuotaConfig } from "@/lib/quota/queryQuota";
 import { isEmbeddingQuotaExceededError } from "@/lib/quota/embeddingQuota";
 import { getChatRetrieveThreshold } from "@/lib/retrieve/config";
+import { requireUser } from "@/lib/auth/guards";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -47,6 +48,9 @@ function isFallbackResponse(text: string): boolean {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+
     const { messages }: { messages?: ChatMessage[] } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
