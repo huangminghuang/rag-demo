@@ -9,6 +9,9 @@ Add Google OAuth login so each chat request is tied to a user identity and conve
 3. Application identifies current user on each protected request.
 4. Chat and conversation data are accessible only to the authenticated owner.
 5. Ingestion/admin actions are restricted to authorized roles.
+6. Chat history is persisted to conversation storage for future use (resume/review), not only kept in UI memory.
+7. After login, UI shows the user's previous conversations in a left pane.
+8. When the user clicks a conversation in the left pane, the app loads that conversation's messages and continues chat from that context.
 
 ## Google Cloud Setup Requirements
 1. A Google Cloud project exists for this app.
@@ -35,6 +38,9 @@ Add Google OAuth login so each chat request is tied to a user identity and conve
 2. Protected routes return `401` when unauthenticated.
 3. Cross-user access returns `403` or `404`.
 4. Role checks are enforced for admin-only routes.
+5. Each chat turn is saved to `conversation_messages` under the active conversation:
+- Save user turn before model generation.
+- Save assistant turn after successful model response.
 
 ## Security Requirements
 1. Use secure, HTTP-only cookies for session tokens.
@@ -54,3 +60,7 @@ Add Google OAuth login so each chat request is tied to a user identity and conve
 3. User A cannot access User B conversation data.
 4. Google sign-in and sign-out both succeed in local environment.
 5. Secrets are not present in committed files.
+6. After page refresh/re-login, prior conversation messages are still available via conversation APIs.
+7. New chat turns appear in persisted history in correct order (`user` then `assistant`).
+8. After sign-in, the left pane displays existing conversations for the current user.
+9. Clicking a conversation in the left pane loads its full message history and subsequent messages are appended to that same conversation.

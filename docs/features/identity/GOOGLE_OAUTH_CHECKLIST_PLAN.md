@@ -41,12 +41,18 @@
 - [x] Add logged-in user indicator and sign-out control.
 - [x] Add behavior for unauthenticated user (redirect or disabled chat).
 - [x] Ensure existing chat UX remains simple after auth.
+- [x] Document chat-to-conversation transition flow: `docs/features/identity/CHAT_TO_CONVERSATION_TRANSITION.md`.
+- [ ] Add left pane conversation UI (list/create/select conversation).
+- [ ] Load current user's past conversations into the left pane after login via `GET /api/conversations`.
+- [ ] On click in left pane, set active conversation and load messages via `GET /api/conversations/[conversationId]/messages`.
+- [ ] Persist user and assistant turns via `POST /api/conversations/[conversationId]/messages`.
+- [ ] Connect chat flow to active `conversationId` lifecycle.
 
 ## 7. Security Hardening
-- [ ] Use secure, HTTP-only cookies.
-- [ ] Enable CSRF safeguards for session-based flows.
-- [ ] Validate and sanitize callback/session inputs.
-- [ ] Add login/auth event logging without leaking sensitive data.
+- [x] Use secure, HTTP-only cookies.
+- [x] Enable CSRF safeguards for session-based flows.
+- [x] Validate and sanitize callback/session inputs.
+- [x] Add login/auth event logging without leaking sensitive data.
 
 ## 8. Verification and Acceptance
 - [ ] Verify Google login works in local environment.
@@ -54,6 +60,9 @@
 - [ ] Verify User A cannot access User B conversations.
 - [ ] Verify protected routes return correct `401/403` responses.
 - [ ] Run regression check for chat/retrieve/ingest flows after auth integration.
+- [ ] Verify chat history persists across page refresh/sign-out/sign-in and can be reused from saved conversations.
+- [ ] Verify left pane shows the authenticated user's existing conversations right after login.
+- [ ] Verify clicking a left-pane conversation loads full message history and continues appending new turns to that same conversation.
 
 ## 9. Testing Subsection (When Applicable)
 
@@ -69,6 +78,7 @@
 - [ ] Add local auth callback route tests with mocked provider responses.
 - [ ] Add DB-backed session integration tests.
 - [ ] Add API tests ensuring conversation data is user-scoped.
+- [ ] Add UI/API integration tests for left-pane conversation load + click-to-resume flow.
 
 ### 9.3 Manual Verification (Provider Console Dependent)
 - [ ] Verify Google Cloud Console OAuth settings (origins/callbacks).
