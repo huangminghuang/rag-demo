@@ -49,6 +49,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+### Run unit tests
+
+```bash
+npm test
+```
+
 ### Optional cleanup
 
 ```bash
@@ -110,3 +116,24 @@ Set these environment variables to tune retrieval precision/recall:
 Valid range is `0.0` to `1.0`. Invalid values fall back to defaults.
 
 For troubleshooting and tuning workflow, see `docs/RETRIEVAL_THRESHOLD_TUNING.md`.
+
+## Google OAuth Credentials (Env + Fallback)
+
+Google OAuth credentials are loaded with this order:
+1. `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` from env.
+2. Fallback JSON file path from `GOOGLE_OAUTH_JSON_PATH` (default: `.secrets/google_oauth.json`).
+
+Required/related variables:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_OAUTH_JSON_PATH` (optional fallback file path)
+- `AUTH_SESSION_SECRET` (session/cookie signing secret for auth integration)
+- `AUTH_SESSION_MAX_AGE_SECONDS` (optional, default 7 days)
+- `APP_BASE_URL` (optional, default `http://localhost:3000`)
+- `GOOGLE_REDIRECT_URI` (optional, default callback under `APP_BASE_URL`)
+
+Current auth endpoints:
+- `GET /api/auth/signin/google` (start Google OAuth)
+- `GET /api/auth/callback/google` (OAuth callback)
+- `POST /api/auth/signout` (clear session)
+- `GET /api/auth/me` (protected user endpoint)

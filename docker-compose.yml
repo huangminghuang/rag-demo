@@ -55,6 +55,13 @@ services:
       - QUERY_QUOTA_OUTPUT_TOKEN_RESERVE=${QUERY_QUOTA_OUTPUT_TOKEN_RESERVE:-1024}
       - RETRIEVE_THRESHOLD_DEFAULT=${RETRIEVE_THRESHOLD_DEFAULT:-0.55}
       - CHAT_RETRIEVE_THRESHOLD=${CHAT_RETRIEVE_THRESHOLD:-0.6}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_OAUTH_JSON_PATH=${GOOGLE_OAUTH_JSON_PATH:-.secrets/google_oauth.json}
+      - AUTH_SESSION_SECRET=${AUTH_SESSION_SECRET:-}
+      - AUTH_SESSION_MAX_AGE_SECONDS=${AUTH_SESSION_MAX_AGE_SECONDS:-604800}
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3000}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:3000/api/auth/callback/google}
       - SITEMAP_URL=${SITEMAP_URL:-https://dev.epicgames.com/community/api/documentation/sitemaps/unreal_engine/ue_getting_started/sitemap_1.xml}
       - PRODUCT_FILTER=${PRODUCT_FILTER:-unreal-engine}
     depends_on:
