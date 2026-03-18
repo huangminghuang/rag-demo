@@ -2,9 +2,17 @@ import { NextResponse } from "next/server";
 import { retrieveRelevantChunks } from "@/lib/retrieve";
 import { isEmbeddingQuotaExceededError } from "@/lib/quota/embeddingQuota";
 import { resolveRetrieveThreshold } from "@/lib/retrieve/config";
+import { requireUser } from "@/lib/auth/guards";
+import { requireCsrf } from "@/lib/auth/csrf";
 
 export async function POST(req: Request) {
   try {
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
+
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+
     const { query, limit, threshold } = await req.json();
 
     if (!query) {

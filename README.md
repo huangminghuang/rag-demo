@@ -16,7 +16,20 @@ docker compose up -d db
 docker compose run --rm migration
 ```
 
-3. Verify database is running:
+Schema changes now use committed SQL migrations in [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle). After editing [`src/lib/db/schema.ts`](/Users/huang-minghuang/projects/content-embedding/src/lib/db/schema.ts), generate a new migration locally with:
+
+```bash
+npm run db:generate
+```
+
+3. (Optional) Seed a default admin user for local testing:
+
+```bash
+# set DEFAULT_ADMIN_EMAIL in .env first
+docker compose run --rm seed_admin
+```
+
+4. Verify database is running:
 
 ```bash
 docker compose ps
@@ -48,6 +61,12 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Run unit tests
+
+```bash
+npm test
+```
 
 ### Optional cleanup
 
@@ -110,3 +129,56 @@ Set these environment variables to tune retrieval precision/recall:
 Valid range is `0.0` to `1.0`. Invalid values fall back to defaults.
 
 For troubleshooting and tuning workflow, see `docs/RETRIEVAL_THRESHOLD_TUNING.md`.
+
+## Google OAuth Credentials (Env + Fallback)
+
+Google OAuth credentials are loaded with this order:
+1. `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` from env.
+2. Fallback JSON file path from `GOOGLE_OAUTH_JSON_PATH` (default: `.secrets/google_oauth.json`).
+
+Required/related variables:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_OAUTH_JSON_PATH` (optional fallback file path)
+- `AUTH_SESSION_SECRET` (session/cookie signing secret for auth integration)
+- `AUTH_SESSION_MAX_AGE_SECONDS` (optional, default 7 days)
+- `APP_BASE_URL` (optional, default `http://localhost:3000`)
+- `GOOGLE_REDIRECT_URI` (optional, default callback under `APP_BASE_URL`)
+
+Current auth endpoints:
+- `GET /api/auth/signin/google` (start Google OAuth)
+- `GET /api/auth/callback/google` (OAuth callback)
+- `POST /api/auth/signout` (clear session)
+- `GET /api/auth/me` (protected user endpoint)
+
+CSRF protection:
+- Mutating authenticated routes require `x-csrf-token` header to match `csrf_token` cookie.
+- The `csrf_token` cookie is set after sign-in/callback (and ensured on `GET /api/auth/me`).
+
+## Default Admin Setup (Local Testing)
+
+Use Docker Compose seed service to provision or promote one email as admin.
+
+1. Set in `.env`:
+
+```bash
+DEFAULT_ADMIN_EMAIL=you@example.com
+DEFAULT_ADMIN_NAME=Local Admin
+```
+
+2. Run DB + migration + seed:
+
+```bash
+docker compose up -d db
+docker compose run --rm migration
+docker compose run --rm seed_admin
+```
+
+3. Sign in with Google using the same email as `DEFAULT_ADMIN_EMAIL`.
+
+Notes:
+- Seeding is an upsert by email and enforces `role='admin'`.
+- The `seed_admin` container runs [`docker/seed-admin/seed-default-admin.sh`](/Users/huang-minghuang/projects/content-embedding/docker/seed-admin/seed-default-admin.sh) with `psql`.
+- The `migration` container runs [`docker/migration/run-migrations.sh`](/Users/huang-minghuang/projects/content-embedding/docker/migration/run-migrations.sh) and applies committed SQL files from [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle).
+- `migration` and `seed_admin` use dedicated minimal Docker build contexts under `docker/`, which also serve as the source of truth for their scripts and migration assets.
+- `docker compose up app` now runs `seed_admin` before app startup.

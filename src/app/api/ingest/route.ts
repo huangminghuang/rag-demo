@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { runIngestion } from "@/lib/ingest";
+import { requireRole } from "@/lib/auth/guards";
+import { requireCsrf } from "@/lib/auth/csrf";
 
 export async function POST(req: Request) {
   try {
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
+
+    const auth = await requireRole("admin");
+    if (!auth.ok) return auth.response;
+
     const { limit, productFilter } = await req.json().catch(() => ({}));
     
     // We run this as an async task, but in a real app, this should be a background job.

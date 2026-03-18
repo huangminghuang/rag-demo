@@ -21,11 +21,11 @@ RUN npm run build
 
 # Migration stage
 FROM base AS migration
+RUN apk add --no-cache bash postgresql-client
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# We use tsx to run our custom migration script
-CMD ["npx", "tsx", "src/lib/db/migrate.ts"]
+# Run committed SQL migrations with psql
+CMD ["bash", "scripts/run-migrations.sh"]
 
 # Production image, copy all the files and run next
 FROM base AS runner

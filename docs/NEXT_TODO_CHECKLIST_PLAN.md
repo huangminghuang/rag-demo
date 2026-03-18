@@ -1,12 +1,12 @@
 # Next TODO Checklist Plan
 
 ## 1. Identity, Auth, and Conversation Lifecycle
-- [ ] Define user identity strategy (local auth stub, OAuth, or external provider).
-- [ ] Add authentication middleware for protected routes.
-- [ ] Define authorization rules for ingest/admin vs chat usage.
-- [ ] Add conversation/session schema (conversation, message, user linkage).
-- [ ] Persist chat history per conversation.
-- [ ] Add APIs to create/list/load conversation sessions.
+- [x] Define user identity strategy (local auth stub, OAuth, or external provider).
+- [x] Add authentication middleware for protected routes.
+- [x] Define authorization rules for ingest/admin vs chat usage.
+- [x] Add conversation/session schema (conversation, message, user linkage).
+- [x] Persist chat history per conversation.
+- [x] Add APIs to create/list/load conversation sessions.
 
 ## 2. Context Management and Chat Quality
 - [ ] Add conversation windowing policy (max turns or token budget).
