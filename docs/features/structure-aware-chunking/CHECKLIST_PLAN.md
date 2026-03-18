@@ -32,20 +32,20 @@
 - [x] Assign `content_kind` consistently across prose, list, code, table, blockquote, and mixed chunks.
 
 ## 3. Ingestion Integration
-- [ ] Keep `fetchPage()` as the HTML download entrypoint.
-- [ ] Add a new structured parse function alongside or in place of the current flattened parse flow.
-- [ ] Update `src/lib/ingest/index.ts` to use the structured parser and structure-aware chunker.
-- [ ] Keep the existing embedding batch flow unchanged apart from the chunk source.
-- [ ] Keep `chunks` insertion compatible with the existing DB schema.
-- [ ] Continue using incremental crawl skip logic based on document hash.
-- [ ] Preserve chunk anchor selection for downstream retrieval/citation behavior.
+- [x] Keep `fetchPage()` as the HTML download entrypoint.
+- [x] Add a new structured parse function alongside or in place of the current flattened parse flow.
+- [x] Update `src/lib/ingest/index.ts` to use the structured parser and structure-aware chunker.
+- [x] Keep the existing embedding batch flow unchanged apart from the chunk source.
+- [x] Keep `chunks` insertion compatible with the existing DB schema.
+- [x] Continue using incremental crawl skip logic based on document hash.
+- [x] Preserve chunk anchor selection for downstream retrieval/citation behavior.
 
 ## 4. Metadata and Persistence
 - [x] Store richer structure-aware fields in `chunks.metadata` without schema changes.
 - [x] Include required metadata keys: `chunk_version`, `source_title`, `heading_path`, `primary_heading`, `element_types`, `content_kind`, `word_count`, `token_estimate`.
 - [x] Include optional metadata keys when relevant: `table_html`, `code_language`, `split_part`, `dom_paths`.
 - [x] Set `chunk_version` to `structure-v1` for all new chunks.
-- [ ] Keep `chunks.content`, `chunks.anchor`, and `chunks.tokenCount` compatible with the current persistence flow.
+- [x] Keep `chunks.content`, `chunks.anchor`, and `chunks.tokenCount` compatible with the current persistence flow.
 - [ ] Ensure metadata format is documented and stable enough for debugging and later evolution.
 
 ## 5. Testing Subsection
