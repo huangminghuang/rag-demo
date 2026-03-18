@@ -73,10 +73,35 @@ export async function POST(req: Request, context: RouteContext) {
       createdAt: conversationMessages.createdAt,
     });
 
-  await db
-    .update(conversations)
-    .set({ updatedAt: new Date() })
-    .where(eq(conversations.id, auth.conversationId));
+  const [currentConversation] = await db
+    .select({
+      id: conversations.id,
+      title: conversations.title,
+      createdAt: conversations.createdAt,
+      updatedAt: conversations.updatedAt,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, auth.conversationId))
+    .limit(1);
 
-  return NextResponse.json({ message: created }, { status: 201 });
+  const shouldPromoteTitle =
+    role === "user" &&
+    (!currentConversation?.title || currentConversation.title.trim() === "New Conversation");
+  const nextTitle = shouldPromoteTitle ? normalizedContent.slice(0, 160) : currentConversation?.title ?? null;
+
+  const [updatedConversation] = await db
+    .update(conversations)
+    .set({
+      title: nextTitle,
+      updatedAt: new Date(),
+    })
+    .where(eq(conversations.id, auth.conversationId))
+    .returning({
+      id: conversations.id,
+      title: conversations.title,
+      createdAt: conversations.createdAt,
+      updatedAt: conversations.updatedAt,
+    });
+
+  return NextResponse.json({ message: created, conversation: updatedConversation }, { status: 201 });
 }

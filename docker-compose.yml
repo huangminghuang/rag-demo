@@ -19,9 +19,8 @@ services:
 
   migration:
     build:
-      context: .
+      context: ./docker/migration
       dockerfile: Dockerfile
-      target: migration
     container_name: epic_docs_migration
     platform: linux/arm64
     environment:
@@ -32,12 +31,10 @@ services:
 
   seed_admin:
     build:
-      context: .
+      context: ./docker/seed-admin
       dockerfile: Dockerfile
-      target: migration
     container_name: epic_docs_seed_admin
     platform: linux/arm64
-    command: ["npx", "tsx", "src/lib/db/seedDefaultAdmin.ts"]
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/epic_docs_rag
       - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-}

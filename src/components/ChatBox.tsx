@@ -26,6 +26,10 @@ interface ConversationItem {
   updatedAt: string;
 }
 
+interface SavedMessageResult {
+  conversation?: ConversationItem;
+}
+
 export default function ChatBox() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -209,7 +213,7 @@ export default function ChatBox() {
     await loadConversationMessages(conversationId);
   };
 
-  const saveMessage = async (conversationId: string, message: Pick<Message, "role" | "content">) => {
+  const saveMessage = async (conversationId: string, message: Pick<Message, "role" | "content">): Promise<SavedMessageResult> => {
     const response = await fetch(`/api/conversations/${conversationId}/messages`, {
       method: "POST",
       headers: {
@@ -226,14 +230,12 @@ export default function ChatBox() {
     if (!response.ok) {
       throw new Error("Failed to persist message");
     }
+
+    return response.json();
   };
 
-  const moveConversationToTop = (conversationId: string) => {
-    setConversations((prev) => {
-      const found = prev.find((item) => item.id === conversationId);
-      if (!found) return prev;
-      return [{ ...found, updatedAt: new Date().toISOString() }, ...prev.filter((item) => item.id !== conversationId)];
-    });
+  const mergeConversation = (conversation: ConversationItem) => {
+    setConversations((prev) => [conversation, ...prev.filter((item) => item.id !== conversation.id)]);
   };
 
   const handleSend = async () => {
@@ -253,12 +255,14 @@ export default function ChatBox() {
         }
       }
 
-      await saveMessage(conversationId, userMsg);
+      const savedUserMessage = await saveMessage(conversationId, userMsg);
+      if (savedUserMessage.conversation) {
+        mergeConversation(savedUserMessage.conversation);
+      }
       setMessages((prev) => {
         const base = prev.filter((m) => !m.transient);
         return [...base, userMsg];
       });
-      moveConversationToTop(conversationId);
 
       const modelMessages = [...messages.filter((m) => !m.transient), userMsg].map((msg) => ({
         role: msg.role,
@@ -293,9 +297,11 @@ export default function ChatBox() {
         sources: data.sources,
       };
 
-      await saveMessage(conversationId, assistantMsg);
+      const savedAssistantMessage = await saveMessage(conversationId, assistantMsg);
+      if (savedAssistantMessage.conversation) {
+        mergeConversation(savedAssistantMessage.conversation);
+      }
       setMessages((prev) => [...prev, assistantMsg]);
-      moveConversationToTop(conversationId);
     } catch (error) {
       console.error(error);
       setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error. Please try again." }]);

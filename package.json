@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bash docker/migration/run-migrations.sh",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest"

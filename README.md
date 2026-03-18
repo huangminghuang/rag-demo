@@ -16,6 +16,12 @@ docker compose up -d db
 docker compose run --rm migration
 ```
 
+Schema changes now use committed SQL migrations in [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle). After editing [`src/lib/db/schema.ts`](/Users/huang-minghuang/projects/content-embedding/src/lib/db/schema.ts), generate a new migration locally with:
+
+```bash
+npm run db:generate
+```
+
 3. (Optional) Seed a default admin user for local testing:
 
 ```bash
@@ -172,4 +178,7 @@ docker compose run --rm seed_admin
 
 Notes:
 - Seeding is an upsert by email and enforces `role='admin'`.
+- The `seed_admin` container runs [`docker/seed-admin/seed-default-admin.sh`](/Users/huang-minghuang/projects/content-embedding/docker/seed-admin/seed-default-admin.sh) with `psql`.
+- The `migration` container runs [`docker/migration/run-migrations.sh`](/Users/huang-minghuang/projects/content-embedding/docker/migration/run-migrations.sh) and applies committed SQL files from [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle).
+- `migration` and `seed_admin` use dedicated minimal Docker build contexts under `docker/`, which also serve as the source of truth for their scripts and migration assets.
 - `docker compose up app` now runs `seed_admin` before app startup.
