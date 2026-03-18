@@ -46,7 +46,7 @@
 - [x] Include optional metadata keys when relevant: `table_html`, `code_language`, `split_part`, `dom_paths`.
 - [x] Set `chunk_version` to `structure-v1` for all new chunks.
 - [x] Keep `chunks.content`, `chunks.anchor`, and `chunks.tokenCount` compatible with the current persistence flow.
-- [ ] Ensure metadata format is documented and stable enough for debugging and later evolution.
+- [x] Ensure metadata format is documented and stable enough for debugging and later evolution.
 
 ## 5. Testing Subsection
 

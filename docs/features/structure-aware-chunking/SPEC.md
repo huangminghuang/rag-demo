@@ -458,6 +458,23 @@ chunk_version: "structure-v1"
 
 This enables later reingest migrations or mixed-version debugging.
 
+### Metadata Stability Rules
+
+For `structure-v1`, the metadata contract should be treated as stable for downstream debugging and inspection.
+
+Rules:
+
+- required keys must always be present on persisted structure-aware chunks
+- optional keys must only appear when relevant, but their meaning must remain stable once introduced
+- `chunk_version` must change before removing or redefining existing keys
+- new optional keys may be added in later revisions as long as older keys keep their current meaning
+
+This keeps the metadata usable for:
+
+- debugging ingestion output
+- comparing chunking revisions across reingests
+- later schema or retrieval evolution without ambiguity about historical chunk shape
+
 ## Ingestion Integration
 
 ### `parseHTML` Contract

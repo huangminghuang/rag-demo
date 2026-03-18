@@ -62,6 +62,7 @@ export interface BlockQuoteElement extends BaseElement {
   type: "blockquote";
 }
 
+// Versioned metadata contract stored in `chunks.metadata` for structure-aware chunk debugging and evolution.
 export interface StructureAwareChunkMetadata {
   chunk_version: "structure-v1";
   source_title: string;
