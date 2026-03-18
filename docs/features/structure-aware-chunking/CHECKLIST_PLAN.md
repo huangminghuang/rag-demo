@@ -1,18 +1,18 @@
 # Structure-Aware Chunking Checklist Plan
 
 ## 1. Parser and Types
-- [ ] Add shared structure-aware ingestion types in `src/lib/ingest/structureTypes.ts`.
-- [ ] Define `StructuredDocument` with `url`, `title`, `product`, `lang`, `hash`, and ordered `elements`.
-- [ ] Define typed structured elements for headings, paragraphs, lists, code blocks, tables, and block quotes.
-- [ ] Define versioned chunk metadata shape for `structure-v1`.
-- [ ] Add parser config/constants in `src/lib/ingest/structureConfig.ts`.
-- [ ] Implement a structure-aware parser in `src/lib/ingest/structureParser.ts`.
-- [ ] Remove boilerplate nodes before extracting content.
-- [ ] Implement deterministic main-content selection with fallback order: `article`, `main`, `[role="main"]`, `.content`, `#main-content`, `body`.
-- [ ] Traverse the selected DOM root in source order and emit normalized structured elements.
-- [ ] Build heading paths rooted at the document title.
-- [ ] Preserve anchor context on elements when available.
-- [ ] Compute document hash from normalized extracted content rather than raw HTML.
+- [x] Add shared structure-aware ingestion types in `src/lib/ingest/structureTypes.ts`.
+- [x] Define `StructuredDocument` with `url`, `title`, `product`, `lang`, `hash`, and ordered `elements`.
+- [x] Define typed structured elements for headings, paragraphs, lists, code blocks, tables, and block quotes.
+- [x] Define versioned chunk metadata shape for `structure-v1`.
+- [x] Add parser config/constants in `src/lib/ingest/structureConfig.ts`.
+- [x] Implement a structure-aware parser in `src/lib/ingest/structureParser.ts`.
+- [x] Remove boilerplate nodes before extracting content.
+- [x] Implement deterministic main-content selection with fallback order: `article`, `main`, `[role="main"]`, `.content`, `#main-content`, `body`.
+- [x] Traverse the selected DOM root in source order and emit normalized structured elements.
+- [x] Build heading paths rooted at the document title.
+- [x] Preserve anchor context on elements when available.
+- [x] Compute document hash from normalized extracted content rather than raw HTML.
 
 ## 2. Chunker and Chunk Formatting
 - [ ] Add `src/lib/ingest/structureChunker.ts`.
@@ -51,12 +51,13 @@
 ## 5. Testing Subsection
 
 ### 5.1 Unit Tests (Automatable)
-- [ ] Add parser tests for main-content root selection.
+- [x] Add parser tests for main-content root selection.
 - [ ] Add parser tests for heading-path construction rooted at the document title.
+- [x] Add parser tests for heading-path construction rooted at the document title.
 - [ ] Add parser tests for paragraph extraction.
 - [ ] Add parser tests for list extraction.
-- [ ] Add parser tests for code block extraction.
-- [ ] Add parser tests for table extraction and raw HTML preservation.
+- [x] Add parser tests for code block extraction.
+- [x] Add parser tests for table extraction and raw HTML preservation.
 - [ ] Add chunker tests for heading-boundary chunk flushing.
 - [ ] Add chunker tests verifying no overlap across structural boundaries.
 - [ ] Add chunker tests for code block isolation.

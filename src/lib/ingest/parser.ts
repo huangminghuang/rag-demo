@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import crypto from "crypto";
+export { parseHTMLToStructuredDocument } from "./structureParser";
 
 export interface ExtractedPage {
   url: string;
