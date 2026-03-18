@@ -15,21 +15,21 @@
 - [x] Compute document hash from normalized extracted content rather than raw HTML.
 
 ## 2. Chunker and Chunk Formatting
-- [ ] Add `src/lib/ingest/structureChunker.ts`.
-- [ ] Implement chunk assembly over structured elements instead of flattened page text.
-- [ ] Enforce no overlap across structural boundaries.
-- [ ] Flush chunks on heading transitions when appropriate.
-- [ ] Preserve tables as standalone chunks by default.
-- [ ] Preserve large or self-contained code blocks as standalone chunks by default.
-- [ ] Keep lists grouped when possible within the current heading path.
-- [ ] Prevent tables and code blocks from being merged into mixed chunks in `structure-v1`.
-- [ ] Add paragraph splitting rules using paragraph/newline/sentence/hard-limit fallback.
-- [ ] Add code splitting rules using block/newline/hard-limit fallback.
-- [ ] Add table splitting rules by row groups when a table exceeds max size.
-- [ ] Preserve split metadata for oversized paragraph/code/table elements.
-- [ ] Format final chunk text with document title and heading path context.
-- [ ] Add normalized table text for embedding-friendly chunk content while preserving raw table HTML in metadata.
-- [ ] Assign `content_kind` consistently across prose, list, code, table, blockquote, and mixed chunks.
+- [x] Add `src/lib/ingest/structureChunker.ts`.
+- [x] Implement chunk assembly over structured elements instead of flattened page text.
+- [x] Enforce no overlap across structural boundaries.
+- [x] Flush chunks on heading transitions when appropriate.
+- [x] Preserve tables as standalone chunks by default.
+- [x] Preserve large or self-contained code blocks as standalone chunks by default.
+- [x] Keep lists grouped when possible within the current heading path.
+- [x] Prevent tables and code blocks from being merged into mixed chunks in `structure-v1`.
+- [x] Add paragraph splitting rules using paragraph/newline/sentence/hard-limit fallback.
+- [x] Add code splitting rules using block/newline/hard-limit fallback.
+- [x] Add table splitting rules by row groups when a table exceeds max size.
+- [x] Preserve split metadata for oversized paragraph/code/table elements.
+- [x] Format final chunk text with document title and heading path context.
+- [x] Add normalized table text for embedding-friendly chunk content while preserving raw table HTML in metadata.
+- [x] Assign `content_kind` consistently across prose, list, code, table, blockquote, and mixed chunks.
 
 ## 3. Ingestion Integration
 - [ ] Keep `fetchPage()` as the HTML download entrypoint.
@@ -41,10 +41,10 @@
 - [ ] Preserve chunk anchor selection for downstream retrieval/citation behavior.
 
 ## 4. Metadata and Persistence
-- [ ] Store richer structure-aware fields in `chunks.metadata` without schema changes.
-- [ ] Include required metadata keys: `chunk_version`, `source_title`, `heading_path`, `primary_heading`, `element_types`, `content_kind`, `word_count`, `token_estimate`.
-- [ ] Include optional metadata keys when relevant: `table_html`, `code_language`, `split_part`, `dom_paths`.
-- [ ] Set `chunk_version` to `structure-v1` for all new chunks.
+- [x] Store richer structure-aware fields in `chunks.metadata` without schema changes.
+- [x] Include required metadata keys: `chunk_version`, `source_title`, `heading_path`, `primary_heading`, `element_types`, `content_kind`, `word_count`, `token_estimate`.
+- [x] Include optional metadata keys when relevant: `table_html`, `code_language`, `split_part`, `dom_paths`.
+- [x] Set `chunk_version` to `structure-v1` for all new chunks.
 - [ ] Keep `chunks.content`, `chunks.anchor`, and `chunks.tokenCount` compatible with the current persistence flow.
 - [ ] Ensure metadata format is documented and stable enough for debugging and later evolution.
 
@@ -52,20 +52,19 @@
 
 ### 5.1 Unit Tests (Automatable)
 - [x] Add parser tests for main-content root selection.
-- [ ] Add parser tests for heading-path construction rooted at the document title.
 - [x] Add parser tests for heading-path construction rooted at the document title.
 - [ ] Add parser tests for paragraph extraction.
 - [ ] Add parser tests for list extraction.
 - [x] Add parser tests for code block extraction.
 - [x] Add parser tests for table extraction and raw HTML preservation.
-- [ ] Add chunker tests for heading-boundary chunk flushing.
-- [ ] Add chunker tests verifying no overlap across structural boundaries.
-- [ ] Add chunker tests for code block isolation.
-- [ ] Add chunker tests for table isolation.
-- [ ] Add chunker tests for oversized paragraph splitting.
-- [ ] Add chunker tests for oversized code splitting.
-- [ ] Add chunker tests for oversized table splitting.
-- [ ] Add chunker tests for metadata population and `chunk_version`.
+- [x] Add chunker tests for heading-boundary chunk flushing.
+- [x] Add chunker tests verifying no overlap across structural boundaries.
+- [x] Add chunker tests for code block isolation.
+- [x] Add chunker tests for table isolation.
+- [x] Add chunker tests for oversized paragraph splitting.
+- [x] Add chunker tests for oversized code splitting.
+- [x] Add chunker tests for oversized table splitting.
+- [x] Add chunker tests for metadata population and `chunk_version`.
 
 ### 5.2 Integration / Regression Tests (Automatable)
 - [ ] Add representative HTML fixtures under `src/lib/ingest/__fixtures__/`.
