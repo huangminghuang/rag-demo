@@ -101,4 +101,66 @@ describe("parseHTMLToStructuredDocument", () => {
     });
     expect(code?.text).toContain("console.log");
   });
+
+  it("extracts paragraph elements with normalized text", () => {
+    const html = `
+      <html>
+        <head><title>Paragraph Guide</title></head>
+        <body>
+          <article>
+            <h1 id="intro">Intro</h1>
+            <p>
+              This paragraph has
+              extra spacing that should be normalized.
+            </p>
+          </article>
+        </body>
+      </html>
+    `;
+
+    const parsed = parseHTMLToStructuredDocument(html, "https://example.com/docs/en-us/guide/paragraphs");
+    const paragraph = parsed.elements.find((element) => element.type === "paragraph");
+
+    expect(paragraph).toMatchObject({
+      type: "paragraph",
+      text: "This paragraph has extra spacing that should be normalized.",
+      headingPath: ["Paragraph Guide", "Intro"],
+    });
+  });
+
+  it("extracts ordered and unordered lists as structured list elements", () => {
+    const html = `
+      <html>
+        <head><title>List Guide</title></head>
+        <body>
+          <article>
+            <h1 id="steps">Steps</h1>
+            <ol>
+              <li>Install dependencies</li>
+              <li>Run the server</li>
+            </ol>
+            <ul>
+              <li>Read the docs</li>
+              <li>Review examples</li>
+            </ul>
+          </article>
+        </body>
+      </html>
+    `;
+
+    const parsed = parseHTMLToStructuredDocument(html, "https://example.com/docs/en-us/guide/lists");
+    const lists = parsed.elements.filter((element) => element.type === "list");
+
+    expect(lists).toHaveLength(2);
+    expect(lists[0]).toMatchObject({
+      type: "list",
+      listKind: "ordered",
+      items: ["Install dependencies", "Run the server"],
+    });
+    expect(lists[1]).toMatchObject({
+      type: "list",
+      listKind: "unordered",
+      items: ["Read the docs", "Review examples"],
+    });
+  });
 });

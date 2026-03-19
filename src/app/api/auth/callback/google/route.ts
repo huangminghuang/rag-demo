@@ -31,11 +31,12 @@ export async function GET(req: Request) {
 
     const token = await exchangeCodeForToken(code);
     const profile = await fetchGoogleUserInfo(token.access_token);
+    const normalizedEmail = profile.email.trim().toLowerCase();
 
     const [userRecord] = await db
       .insert(users)
       .values({
-        email: profile.email,
+        email: normalizedEmail,
         name: profile.name,
         avatarUrl: profile.picture,
         role: "user",
@@ -56,6 +57,14 @@ export async function GET(req: Request) {
         avatarUrl: users.avatarUrl,
         role: users.role,
       });
+
+    console.info("Google OAuth user upsert:", {
+      googleEmail: profile.email,
+      normalizedEmail,
+      userId: userRecord.id,
+      storedEmail: userRecord.email,
+      role: userRecord.role,
+    });
 
     await db
       .insert(oauthAccounts)
@@ -102,7 +111,7 @@ export async function GET(req: Request) {
       success: true,
       provider: "google",
       userId: userRecord.id,
-      email: userRecord.email,
+      email: normalizedEmail,
     });
 
     return response;

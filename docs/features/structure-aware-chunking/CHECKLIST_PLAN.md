@@ -53,8 +53,8 @@
 ### 5.1 Unit Tests (Automatable)
 - [x] Add parser tests for main-content root selection.
 - [x] Add parser tests for heading-path construction rooted at the document title.
-- [ ] Add parser tests for paragraph extraction.
-- [ ] Add parser tests for list extraction.
+- [x] Add parser tests for paragraph extraction.
+- [x] Add parser tests for list extraction.
 - [x] Add parser tests for code block extraction.
 - [x] Add parser tests for table extraction and raw HTML preservation.
 - [x] Add chunker tests for heading-boundary chunk flushing.
@@ -67,14 +67,14 @@
 - [x] Add chunker tests for metadata population and `chunk_version`.
 
 ### 5.2 Integration / Regression Tests (Automatable)
-- [ ] Add representative HTML fixtures under `src/lib/ingest/__fixtures__/`.
-- [ ] Add an ingestion-level test covering structured parse -> chunk -> persistence-ready records.
-- [ ] Add regression tests comparing current and structure-aware chunk outputs on sample docs.
-- [ ] Verify end-to-end ingest compatibility with the existing batch embedding flow.
-- [ ] Verify stored chunk metadata remains JSON-serializable and DB-safe.
-- [ ] Add retrieval-oriented regression checks for table-heavy documents.
-- [ ] Add retrieval-oriented regression checks for code-heavy documents.
-- [ ] Add retrieval-oriented regression checks for mixed-content documents.
+- [x] Add representative HTML fixtures under `src/lib/ingest/__fixtures__/`.
+- [x] Add an ingestion-level test covering structured parse -> chunk -> persistence-ready records.
+- [x] Add regression tests comparing current and structure-aware chunk outputs on sample docs.
+- [x] Verify end-to-end ingest compatibility with the existing batch embedding flow.
+- [x] Verify stored chunk metadata remains JSON-serializable and DB-safe.
+- [x] Add retrieval-oriented regression checks for table-heavy documents.
+- [x] Add retrieval-oriented regression checks for code-heavy documents.
+- [x] Add retrieval-oriented regression checks for mixed-content documents.
 
 ### 5.3 Manual Verification
 - [ ] Run ingestion on a small sitemap sample and inspect emitted chunks manually.

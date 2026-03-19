@@ -16,6 +16,12 @@ docker compose up -d db
 docker compose run --rm migration
 ```
 
+Docker Compose reads `.env` automatically. If you also want overrides from `.env.local`, pass both files explicitly so `.env.local` can override `.env` values:
+
+```bash
+docker compose --env-file .env --env-file .env.local run --rm migration
+```
+
 Schema changes now use committed SQL migrations in [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle). After editing [`src/lib/db/schema.ts`](/Users/huang-minghuang/projects/content-embedding/src/lib/db/schema.ts), generate a new migration locally with:
 
 ```bash
@@ -27,6 +33,12 @@ npm run db:generate
 ```bash
 # set DEFAULT_ADMIN_EMAIL in .env first
 docker compose run --rm seed_admin
+```
+
+If `DEFAULT_ADMIN_EMAIL` is only set in `.env.local`, run:
+
+```bash
+docker compose --env-file .env --env-file .env.local run --rm seed_admin
 ```
 
 4. Verify database is running:
@@ -53,6 +65,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/epic_docs_rag
 ```
 
 Keep your other env vars (for example `GEMINI_API_KEY`, model names, and quota settings) in `.env` or `.env.local`.
+For Docker Compose commands, prefer `.env` for shared values and pass both `.env` and `.env.local` explicitly when you want local overrides.
 
 3. Start the app locally:
 
@@ -174,10 +187,19 @@ docker compose run --rm migration
 docker compose run --rm seed_admin
 ```
 
+If `DEFAULT_ADMIN_EMAIL` or other Docker-consumed variables are stored in `.env.local`, use:
+
+```bash
+docker compose --env-file .env --env-file .env.local up -d db
+docker compose --env-file .env --env-file .env.local run --rm migration
+docker compose --env-file .env --env-file .env.local run --rm seed_admin
+```
+
 3. Sign in with Google using the same email as `DEFAULT_ADMIN_EMAIL`.
 
 Notes:
 - Seeding is an upsert by email and enforces `role='admin'`.
+- Docker Compose does not merge `.env` and `.env.local` automatically; pass both with `--env-file .env --env-file .env.local` when you want local overrides.
 - The `seed_admin` container runs [`docker/seed-admin/seed-default-admin.sh`](/Users/huang-minghuang/projects/content-embedding/docker/seed-admin/seed-default-admin.sh) with `psql`.
 - The `migration` container runs [`docker/migration/run-migrations.sh`](/Users/huang-minghuang/projects/content-embedding/docker/migration/run-migrations.sh) and applies committed SQL files from [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle).
 - `migration` and `seed_admin` use dedicated minimal Docker build contexts under `docker/`, which also serve as the source of truth for their scripts and migration assets.
