@@ -39,6 +39,9 @@
 - [x] Keep `chunks` insertion compatible with the existing DB schema.
 - [x] Continue using incremental crawl skip logic based on document hash.
 - [x] Preserve chunk anchor selection for downstream retrieval/citation behavior.
+- [x] Add an environment-backed verbose debug flag for reasoning-model prompt logging.
+- [x] Update `src/lib/gemini.ts` to print the reasoning-model prompt payload before sending when verbose debug mode is enabled.
+- [x] Use a stable console prefix for prompt logs so they are easy to filter during local diagnostics.
 
 ## 4. Metadata and Persistence
 - [x] Store richer structure-aware fields in `chunks.metadata` without schema changes.
@@ -75,6 +78,9 @@
 - [x] Add retrieval-oriented regression checks for table-heavy documents.
 - [x] Add retrieval-oriented regression checks for code-heavy documents.
 - [x] Add retrieval-oriented regression checks for mixed-content documents.
+- [x] Add tests for reasoning-model verbose debug logging with the flag disabled.
+- [x] Add tests for reasoning-model verbose debug logging with the flag enabled.
+- [x] Verify the logged prompt payload includes both the system prompt and user prompt.
 
 ### 5.3 Manual Verification
 - [ ] Run ingestion on a small sitemap sample and inspect emitted chunks manually.
@@ -85,6 +91,7 @@
 - [ ] Validate retrieval quality against `docs/TEST_QUESTION_SET.md`.
 - [ ] Add and run table-specific questions against the ingested dataset.
 - [ ] Add and run code/config-specific questions against the ingested dataset.
+- [ ] Enable verbose debug mode locally and confirm the reasoning-model prompt is printed to the server console before each request.
 
 ## 6. Verification and Acceptance
 - [ ] Confirm the parser emits stable typed elements in source order for the same HTML input.
@@ -94,4 +101,5 @@
 - [ ] Confirm `runIngestion()` works end-to-end with the new parser/chunker path.
 - [ ] Confirm new chunks embed successfully without downstream special casing.
 - [ ] Confirm retrieval readability and grounding improve or do not regress on representative docs pages.
+- [ ] Confirm verbose debug mode logs reasoning-model prompts only when explicitly enabled.
 - [ ] Confirm the implementation matches `REQUIREMENTS.md` and `SPEC.md` without introducing conflicting behavior.

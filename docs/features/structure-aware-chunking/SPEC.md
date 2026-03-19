@@ -12,7 +12,7 @@ This spec covers:
 - structure-aware chunk generation
 - ingestion pipeline integration
 - metadata format for persisted chunks
-- test and rollout expectations
+- reasoning-model verbose debug logging
 
 This spec does not cover:
 
@@ -62,6 +62,7 @@ Existing modules to update:
 
 - `src/lib/ingest/parser.ts`
 - `src/lib/ingest/index.ts`
+- `src/lib/gemini.ts`
 
 ### Responsibilities
 
@@ -87,6 +88,11 @@ Existing modules to update:
 `structureConfig.ts`
 
 - centralize chunk sizing and behavior flags
+
+`gemini.ts`
+
+- send prompts to the reasoning model
+- print prompt payloads to the server console when verbose debug mode is enabled
 
 ## Data Model
 
@@ -317,6 +323,73 @@ For each element in order:
      - merged size stays within `targetChars`
      - content kind remains compatible
    - otherwise flush and start a new chunk
+
+## Verbose Debug Mode Specification
+
+### Purpose
+
+Verbose debug mode makes reasoning-model requests inspectable during development and diagnostics by logging the prompt payload immediately before the request is sent.
+
+### Configuration
+
+Add an environment-backed flag for verbose prompt logging.
+
+Initial expectation:
+
+```ts
+process.env.REASONING_VERBOSE_DEBUG === "true"
+```
+
+Rules:
+
+- default to disabled when the variable is missing or any value other than `"true"`
+- evaluate the flag in server-side code only
+- keep the flag independent from structure-aware chunking config so it can be reused by other model-call paths later
+
+### Logging Behavior
+
+The primary reasoning-model send path in `src/lib/gemini.ts` must log the prompt payload before invoking the model API.
+
+For `sendChatWithFallback(...)`, log:
+
+- the selected model name
+- the system prompt
+- the user prompt
+
+Output requirements:
+
+- print to the server console with a stable prefix, such as `"[reasoning-debug]"`
+- log only when verbose debug mode is enabled
+- keep the output readable, even for multiline prompts
+
+### Scope Boundaries
+
+For this phase, prompt logging only needs to cover the main reasoning-model request path already used by the application.
+
+This spec does not require:
+
+- logging embedding requests
+- persisting prompts in the database
+- exposing prompt logs in the UI
+- redacting or restructuring prompt text beyond readable console formatting
+
+### Failure and Safety Behavior
+
+Prompt logging must be best-effort only.
+
+Rules:
+
+- logging must not change the prompt payload sent to the model
+- logging must not block or fail the request path if console output fails unexpectedly
+- disabling verbose debug mode must restore the current behavior with no extra prompt logging
+
+### Testing Expectations
+
+Tests should verify:
+
+- prompt logging is skipped when the flag is disabled
+- prompt logging occurs when the flag is enabled
+- the logged payload includes the system prompt and user prompt from the reasoning-model send path
 
 5. If adding an element would exceed `maxChars`:
    - flush current chunk

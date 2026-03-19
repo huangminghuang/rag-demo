@@ -151,6 +151,7 @@ At minimum, the following should be configurable:
 - overlap behavior, if any
 - whether tables are isolated as standalone chunks
 - whether code blocks are isolated as standalone chunks
+- whether verbose prompt debug logging is enabled for reasoning-model requests
 
 ## Quality Requirements
 
@@ -176,8 +177,25 @@ The pipeline should support debugging by making it easy to inspect:
 - extracted structured elements
 - generated chunks
 - chunk metadata
+- prompts sent to the reasoning model when verbose debug mode is enabled
 
 This can be implemented with logs, fixtures, or test helpers.
+
+### Verbose Debug Mode
+
+The application must support a verbose debug mode for reasoning-model requests.
+
+When verbose debug mode is enabled:
+
+- every prompt sent to the reasoning model must be printed to the server console before the request is sent
+- the log output must include the prompt payload in a readable format
+- the behavior must apply consistently to the primary reasoning-model send path
+
+When verbose debug mode is disabled:
+
+- prompt contents must not be logged
+
+The mode should be controlled through configuration, ideally an environment variable, and must default to disabled.
 
 ## Implementation Constraints
 

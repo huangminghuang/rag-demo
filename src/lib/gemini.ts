@@ -18,12 +18,43 @@ export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 export const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName }, { apiVersion: "v1beta" });
 export { queryModelName, embeddingModelName };
 
+// Check whether verbose reasoning-model prompt logging is enabled for this request.
+function isReasoningVerboseDebugEnabled(): boolean {
+  return process.env.REASONING_VERBOSE_DEBUG === "true";
+}
+
+// Print the reasoning-model prompt payload before sending it to Gemini when debug mode is enabled.
+function logReasoningPromptPayload(params: {
+  modelName: string;
+  systemPrompt: string;
+  userMessage: string;
+}): void {
+  if (!isReasoningVerboseDebugEnabled()) {
+    return;
+  }
+
+  try {
+    console.info("[reasoning-debug]", {
+      model: params.modelName,
+      systemPrompt: params.systemPrompt,
+      userPrompt: params.userMessage,
+    });
+  } catch {
+    // Prompt logging must never interfere with the model request path.
+  }
+}
+
 function isModelNotFoundError(error: unknown): boolean {
   if (!error) return false;
   const errString = String(error).toLowerCase();
-  const message = (error as any)?.message?.toLowerCase() || "";
-  
-  const is404 = (error as any)?.status === 404 || (error as any)?.statusCode === 404;
+  const errorLike = error as {
+    message?: string;
+    status?: number;
+    statusCode?: number;
+  };
+  const message = errorLike.message?.toLowerCase() || "";
+
+  const is404 = errorLike.status === 404 || errorLike.statusCode === 404;
   const hasNotFoundText = errString.includes("not found") || 
                           message.includes("not found") || 
                           errString.includes("is not supported for generatecontent") ||
@@ -49,6 +80,11 @@ export async function sendChatWithFallback(params: {
       const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: queryApiVersion });
       const chat = model.startChat({
         history: params.history,
+      });
+      logReasoningPromptPayload({
+        modelName,
+        systemPrompt: params.systemPrompt,
+        userMessage: params.userMessage,
       });
       const result = await chat.sendMessage([{ text: params.systemPrompt }, { text: params.userMessage }]);
       return { text: result.response.text(), model: modelName };
