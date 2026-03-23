@@ -81,6 +81,37 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 npm test
 ```
 
+### Admin Ingestion Rollout Workflows
+
+Admin-only ingestion supports explicit reindexing and internal metadata/debug inspection.
+
+Start a normal ingestion run:
+
+```bash
+curl -X POST http://localhost:3000/api/ingest \
+  -H "x-csrf-token: <csrf-token>" \
+  -b "csrf_token=<csrf-cookie>; auth_session=<session-cookie>"
+```
+
+Start an explicit reindex/backfill run for already-ingested content:
+
+```bash
+curl -X POST http://localhost:3000/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "x-csrf-token: <csrf-token>" \
+  -b "csrf_token=<csrf-cookie>; auth_session=<session-cookie>" \
+  -d '{"limit":10,"productFilter":"unreal-engine","forceReindex":true}'
+```
+
+Inspect recent internal chunk enrichment/debug metadata:
+
+```bash
+curl "http://localhost:3000/api/ingest?limit=20" \
+  -b "auth_session=<session-cookie>"
+```
+
+The admin debug response includes recent chunk-level enrichment status, embedding input version, and embedding input preview. This endpoint is intended for rollout diagnostics and does not change the public retrieval API.
+
 ### Optional cleanup
 
 ```bash

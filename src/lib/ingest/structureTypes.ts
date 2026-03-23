@@ -80,6 +80,9 @@ export interface StructureAwareChunkMetadata {
     original_type: "paragraph" | "code" | "table";
   };
   dom_paths?: string[];
+  embedding_input_version?: string;
+  embedding_input_preview?: string;
+  enrichment?: ChunkEnrichmentMetadata;
 }
 
 export interface StructureAwareChunk {
@@ -87,4 +90,19 @@ export interface StructureAwareChunk {
   chunkIndex: number;
   anchor?: string;
   metadata: StructureAwareChunkMetadata;
+}
+
+export interface ChunkEnrichmentMetadata {
+  version: "meta-v1";
+  status: "success" | "failed" | "skipped_by_policy";
+  summary?: string;
+  keywords?: string[];
+  hypothetical_questions?: string[];
+  entities?: string[];
+  topics?: string[];
+  table_summary?: string;
+  code_summary?: string;
+  api_symbols?: string[];
+  failure_reason?: string;
+  skip_reason?: string;
 }
