@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
 import { documents, chunks } from "@/lib/db/schema";
 import { getSitemapUrls } from "./sitemap";
-import { fetchPage, parseHTML } from "./parser";
-import { chunkDocument } from "./chunker";
+import { fetchPage, parseHTMLToStructuredDocument } from "./parser";
+import { chunkStructuredDocument } from "./structureChunker";
 import { generateBatchEmbeddings } from "./embeddings";
 import { eq } from "drizzle-orm";
 import { isEmbeddingQuotaExceededError } from "@/lib/quota/embeddingQuota";
@@ -90,7 +90,7 @@ export async function runIngestion(options: {
       });
 
       const html = await fetchPage(url);
-      const parsed = parseHTML(html, url);
+      const parsed = parseHTMLToStructuredDocument(html, url);
 
       if (existingDoc && existingDoc.contentHash === parsed.hash) {
         console.log(`Skipping unchanged document: ${url}`);
@@ -124,7 +124,7 @@ export async function runIngestion(options: {
         await tx.delete(chunks).where(eq(chunks.documentId, doc.id));
 
         // 4. Chunk the document
-        const docChunks = chunkDocument(parsed.content, parsed.title, parsed.headings);
+        const docChunks = chunkStructuredDocument(parsed);
         console.log(`  Split into ${docChunks.length} chunks`);
 
         // 5. Generate embeddings in batches for efficiency
@@ -139,7 +139,7 @@ export async function runIngestion(options: {
               documentId: doc.id,
               chunkIndex: c.chunkIndex,
               content: c.content,
-              tokenCount: Math.ceil(c.content.length / 4), // Rough estimate
+              tokenCount: c.metadata.token_estimate,
               embedding: embeddings[index],
               anchor: c.anchor,
               metadata: c.metadata,

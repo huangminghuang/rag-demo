@@ -126,6 +126,14 @@ export async function getCurrentUserFromCookies(): Promise<AuthUser | null> {
 
   if (!userRecord) return null;
 
+  console.info("Resolved current user from session:", {
+    sessionUserId: parsedUser.id,
+    sessionEmail: parsedUser.email,
+    dbUserId: userRecord.id,
+    dbEmail: userRecord.email,
+    role: userRecord.role,
+  });
+
   return {
     id: userRecord.id,
     email: userRecord.email,
