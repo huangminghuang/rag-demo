@@ -22,13 +22,13 @@
 - [x] Add tests for successful rewrite, normalization, equivalence detection, and model-failure fallback.
 
 ## 3. Fusion and Provenance
-- [ ] Add dual retrieval fusion using both original-query and rewritten-query retrieval branches.
-- [ ] Over-fetch from each branch before fusion so the final top-N has room for rewritten-only hits.
-- [ ] Dedupe by stable chunk identity.
-- [ ] Track internal per-result provenance as `original`, `rewritten`, or `both`.
-- [ ] Preserve the maximum similarity score when a chunk appears in both branches.
-- [ ] Apply deterministic tie-break ordering preferring `both`, then `original`, then `rewritten` when scores tie.
-- [ ] Add tests for deduping, provenance assignment, score retention, and tie-break behavior.
+- [x] Add dual retrieval fusion using both original-query and rewritten-query retrieval branches.
+- [x] Over-fetch from each branch before fusion so the final top-N has room for rewritten-only hits.
+- [x] Dedupe by stable chunk identity.
+- [x] Track internal per-result provenance as `original`, `rewritten`, or `both`.
+- [x] Preserve the maximum similarity score when a chunk appears in both branches.
+- [x] Apply deterministic tie-break ordering preferring `both`, then `original`, then `rewritten` when scores tie.
+- [x] Add tests for deduping, provenance assignment, score retention, and tie-break behavior.
 
 ## 4. Shared Retrieval Integration
 - [ ] Integrate query rewrite into `retrieveRelevantChunks(...)`.
