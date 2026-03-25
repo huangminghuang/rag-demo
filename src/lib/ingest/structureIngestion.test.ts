@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { chunkDocument } from "./chunker";
+import { prepareChunksForEmbedding } from "./embeddingInput";
+import { resolveEnrichmentConfig } from "./enrichmentConfig";
+import { enrichChunksForIngestion } from "./enrichment";
 import { parseHTML } from "./parser";
 import { chunkStructuredDocument } from "./structureChunker";
 import { parseHTMLToStructuredDocument } from "./structureParser";
@@ -62,6 +65,80 @@ describe("structure-aware ingestion pipeline", () => {
     expect(tableChunks).toHaveLength(1);
     expect(tableChunks[0].content).toContain("Requests per minute");
     expect(tableChunks[0].metadata.table_html).toContain("<table");
+  });
+
+  it("enriches table-heavy fixtures with table summaries and table-aware embedding input", async () => {
+    const parsed = parseHTMLToStructuredDocument(
+      readFixture("table-heavy.html"),
+      "https://example.com/docs/en-us/guide/table-heavy",
+    );
+    const chunks = chunkStructuredDocument(parsed);
+    const config = resolveEnrichmentConfig({
+      ENRICH_METADATA_CONTENT_KINDS: "prose,table,code",
+      ENRICH_METADATA_MIN_CHARS: "400",
+    });
+    const enriched = await enrichChunksForIngestion(chunks, config, async (chunk) => {
+      if (chunk.metadata.content_kind === "table") {
+        return {
+          summary: "Shows request limits by tier.",
+          keywords: ["rate limits", "tiers"],
+          hypothetical_questions: ["What are the request limits for each tier?"],
+          table_summary: "The table compares request-per-minute limits across Free and Pro tiers.",
+        };
+      }
+
+      return {
+        summary: "Explains quota usage.",
+        keywords: ["quota"],
+        hypothetical_questions: ["How do quotas work?"],
+      };
+    });
+    const prepared = prepareChunksForEmbedding(enriched);
+    const tableChunk = prepared.find((chunk) => chunk.metadata.content_kind === "table");
+
+    expect(tableChunk?.metadata.enrichment?.table_summary).toBe(
+      "The table compares request-per-minute limits across Free and Pro tiers.",
+    );
+    expect(tableChunk?.embeddingInput).toContain("Table Summary: The table compares request-per-minute limits across Free and Pro tiers.");
+  });
+
+  it("enriches code-heavy fixtures with code summaries and code-aware embedding input", async () => {
+    const parsed = parseHTMLToStructuredDocument(
+      readFixture("code-heavy.html"),
+      "https://example.com/docs/en-us/guide/code-heavy",
+    );
+    const chunks = chunkStructuredDocument(parsed);
+    const config = resolveEnrichmentConfig({
+      ENRICH_METADATA_CONTENT_KINDS: "prose,table,code",
+      ENRICH_METADATA_MIN_CHARS: "40",
+    });
+    const enriched = await enrichChunksForIngestion(chunks, config, async (chunk) => {
+      if (chunk.metadata.content_kind === "code") {
+        return {
+          summary: "Shows how to create and configure the client.",
+          keywords: ["client", "sdk"],
+          hypothetical_questions: ["How do I initialize the SDK client?"],
+          code_summary: "Creates a configured client instance for SDK usage.",
+          api_symbols: ["createClient"],
+        };
+      }
+
+      return {
+        summary: "Explains SDK setup.",
+        keywords: ["sdk"],
+        hypothetical_questions: ["How do I set up the SDK?"],
+      };
+    });
+    const prepared = prepareChunksForEmbedding(enriched);
+    const codeChunk = prepared.find((chunk) => chunk.metadata.content_kind === "code");
+
+    expect(codeChunk?.metadata.enrichment?.code_summary).toBe(
+      "Creates a configured client instance for SDK usage.",
+    );
+    expect(codeChunk?.embeddingInput).toContain(
+      "Code Summary: Creates a configured client instance for SDK usage.",
+    );
+    expect(codeChunk?.embeddingInput).toContain("Symbols: createClient");
   });
 
   it("preserves code-heavy retrieval context in dedicated code chunks", () => {

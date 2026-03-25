@@ -18,6 +18,21 @@ export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 export const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName }, { apiVersion: "v1beta" });
 export { queryModelName, embeddingModelName };
 
+// Resolve the API key for enrichment-model requests, falling back to the shared Gemini key.
+export function getEnrichmentApiKey(env: NodeJS.ProcessEnv = process.env): string {
+  const apiKey = env.ENRICH_MODEL_API_KEY || env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("ENRICH_MODEL_API_KEY or GEMINI_API_KEY must be defined in the environment variables.");
+  }
+
+  return apiKey;
+}
+
+// Create a Gemini client for enrichment requests so they can use a dedicated API key when configured.
+export function getEnrichmentGenAI(env: NodeJS.ProcessEnv = process.env): GoogleGenerativeAI {
+  return new GoogleGenerativeAI(getEnrichmentApiKey(env));
+}
+
 // Check whether verbose reasoning-model prompt logging is enabled for this request.
 function isReasoningVerboseDebugEnabled(): boolean {
   return process.env.REASONING_VERBOSE_DEBUG === "true";

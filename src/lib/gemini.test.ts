@@ -100,3 +100,21 @@ describe("sendChatWithFallback", () => {
     });
   });
 });
+
+describe("getEnrichmentApiKey", () => {
+  it("uses ENRICH_MODEL_API_KEY when it is configured", async () => {
+    process.env.ENRICH_MODEL_API_KEY = "enrich-key";
+
+    const { getEnrichmentApiKey } = await loadModule();
+
+    expect(getEnrichmentApiKey()).toBe("enrich-key");
+  });
+
+  it("falls back to GEMINI_API_KEY when ENRICH_MODEL_API_KEY is not configured", async () => {
+    delete process.env.ENRICH_MODEL_API_KEY;
+
+    const { getEnrichmentApiKey } = await loadModule();
+
+    expect(getEnrichmentApiKey()).toBe("test-api-key");
+  });
+});

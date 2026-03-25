@@ -3,6 +3,10 @@ import { documents, chunks } from "@/lib/db/schema";
 import { getSitemapUrls } from "./sitemap";
 import { fetchPage, parseHTMLToStructuredDocument } from "./parser";
 import { chunkStructuredDocument } from "./structureChunker";
+import { planChunkEnrichment, resolveEnrichmentConfig } from "./enrichmentConfig";
+import { enrichChunksForIngestion } from "./enrichment";
+import { enrichChunkWithModel } from "./enrichmentModel";
+import { deriveDocumentProcessingHash, prepareChunksForEmbedding } from "./embeddingInput";
 import { generateBatchEmbeddings } from "./embeddings";
 import { eq } from "drizzle-orm";
 import { isEmbeddingQuotaExceededError } from "@/lib/quota/embeddingQuota";
@@ -22,9 +26,17 @@ export async function runIngestion(options: {
   limit?: number;
   productFilter?: string;
   sitemapUrl?: string;
+  forceReindex?: boolean;
 }) {
   console.log("Starting ingestion...");
   const embedBatchSize = getEmbedBatchSize();
+  const enrichmentConfig = resolveEnrichmentConfig();
+  const activeEnrichmentConfig = {
+    ...enrichmentConfig,
+    enabledContentKinds: enrichmentConfig.enabledContentKinds.filter(
+      (kind) => kind === "prose" || kind === "table" || kind === "code",
+    ),
+  };
 
   // Quick check for DB table existence
   try {
@@ -91,8 +103,9 @@ export async function runIngestion(options: {
 
       const html = await fetchPage(url);
       const parsed = parseHTMLToStructuredDocument(html, url);
+      const processingHash = deriveDocumentProcessingHash(parsed.hash, activeEnrichmentConfig);
 
-      if (existingDoc && existingDoc.contentHash === parsed.hash) {
+      if (!options.forceReindex && existingDoc && existingDoc.contentHash === processingHash) {
         console.log(`Skipping unchanged document: ${url}`);
         continue;
       }
@@ -107,7 +120,7 @@ export async function runIngestion(options: {
           title: parsed.title,
           lang: parsed.lang,
           product: parsed.product,
-          contentHash: parsed.hash,
+          contentHash: processingHash,
           lastCrawledAt: new Date(),
         }).onConflictDoUpdate({
           target: documents.url,
@@ -115,7 +128,7 @@ export async function runIngestion(options: {
             title: parsed.title,
             lang: parsed.lang,
             product: parsed.product,
-            contentHash: parsed.hash,
+            contentHash: processingHash,
             lastCrawledAt: new Date(),
           },
         }).returning();
@@ -126,12 +139,21 @@ export async function runIngestion(options: {
         // 4. Chunk the document
         const docChunks = chunkStructuredDocument(parsed);
         console.log(`  Split into ${docChunks.length} chunks`);
+        const enrichmentPlan = planChunkEnrichment(docChunks, activeEnrichmentConfig);
+        const eligibleChunkCount = enrichmentPlan.filter((item) => item.decision.status === "eligible").length;
+        console.log(`  Enrichment policy: ${eligibleChunkCount}/${docChunks.length} chunks eligible`);
+        const persistedChunks = await enrichChunksForIngestion(
+          docChunks,
+          activeEnrichmentConfig,
+          enrichChunkWithModel,
+        );
+        const preparedChunks = prepareChunksForEmbedding(persistedChunks);
 
         // 5. Generate embeddings in batches for efficiency
         const batchSize = embedBatchSize;
-        for (let i = 0; i < docChunks.length; i += batchSize) {
-          const batch = docChunks.slice(i, i + batchSize);
-          const embeddings = await generateBatchEmbeddings(batch.map(c => c.content));
+        for (let i = 0; i < preparedChunks.length; i += batchSize) {
+          const batch = preparedChunks.slice(i, i + batchSize);
+          const embeddings = await generateBatchEmbeddings(batch.map((c) => c.embeddingInput));
 
           // 6. Store chunks and embeddings
           await tx.insert(chunks).values(
