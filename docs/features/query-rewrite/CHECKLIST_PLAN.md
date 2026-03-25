@@ -54,16 +54,16 @@
 - [x] Add tests covering debug and non-debug response shapes.
 
 ## 6. Rollout and Documentation
-- [ ] Document all `QUERY_REWRITE_*` environment variables in `README.md`.
-- [ ] Document the rewrite debug workflow for `POST /api/retrieve`.
-- [ ] Document the relationship between `QUERY_REWRITE_API_KEY` and `GEMINI_API_KEY`.
-- [ ] Document that query rewrite is disabled by default for rollout safety.
-- [ ] Link or reference the rewrite test query set in local docs.
-- [ ] Add manual verification guidance for:
-- [ ] rewrite-applied queries
-- [ ] heuristic skip queries
-- [ ] rewritten-only fused hits
-- [ ] fallback behavior on rewrite failure
+- [x] Document all `QUERY_REWRITE_*` environment variables in `README.md`.
+- [x] Document the rewrite debug workflow for `POST /api/retrieve`.
+- [x] Document the relationship between `QUERY_REWRITE_API_KEY` and `GEMINI_API_KEY`.
+- [x] Document that query rewrite is disabled by default for rollout safety.
+- [x] Link or reference the rewrite test query set in local docs.
+- [x] Add manual verification guidance for:
+- [x] rewrite-applied queries
+- [x] heuristic skip queries
+- [x] rewritten-only fused hits
+- [x] fallback behavior on rewrite failure
 
 ## 7. Verification and Acceptance
 - [ ] Confirm exact identifier-style queries are not degraded by rewrite.

@@ -186,6 +186,62 @@ Set these environment variables to control query model selection and quota enfor
 Quota is enforced in `POST /api/chat`. When a limit is exceeded, the API returns `429` with a `reason` and `Retry-After` header.
 If the configured query model is unavailable, the app automatically tries fallback models in order.
 
+## Query Rewrite Configuration
+
+Query rewrite is an optional retrieval-layer feature that runs inside `retrieveRelevantChunks(...)`. It affects both `POST /api/retrieve` and `POST /api/chat`, but expanded rewrite/fusion diagnostics are only exposed through `POST /api/retrieve` when you explicitly request debug mode.
+
+Set these environment variables to control query rewrite:
+
+- `QUERY_REWRITE_ENABLED` (default: `false`)
+- `QUERY_REWRITE_API_KEY` (optional; falls back to `GEMINI_API_KEY`)
+- `QUERY_REWRITE_MODEL_NAME` (default: `gemini-2.5-flash`)
+- `QUERY_REWRITE_MODEL_API_VERSION` (default: `v1beta`)
+- `QUERY_REWRITE_TIMEOUT_MS` (default: `3000`)
+- `QUERY_REWRITE_MAX_RETRIES` (default: `1`; may be `0` to disable retries)
+- `QUERY_REWRITE_DEBUG` (default: `false`; enables server-side rewrite debug logging)
+
+How the current codebase uses these settings:
+
+- `QUERY_REWRITE_ENABLED` is the rollout master switch. Query rewrite is disabled by default for rollout safety.
+- `QUERY_REWRITE_API_KEY` lets rewrite traffic use a dedicated Gemini API key; when unset, rewrite falls back to `GEMINI_API_KEY`.
+- `QUERY_REWRITE_MODEL_NAME` and `QUERY_REWRITE_MODEL_API_VERSION` choose the Gemini model used for rewrite requests.
+- `QUERY_REWRITE_TIMEOUT_MS` and `QUERY_REWRITE_MAX_RETRIES` bound rewrite latency and retry behavior separately from answer generation.
+- `QUERY_REWRITE_DEBUG` controls internal rewrite decision logging. It does not change API response shapes by itself.
+
+Debug workflow for `POST /api/retrieve`:
+
+```bash
+curl -X POST http://localhost:3000/api/retrieve \
+  -H "Content-Type: application/json" \
+  -H "x-csrf-token: <csrf-token>" \
+  -b "csrf_token=<csrf-cookie>; auth_session=<session-cookie>" \
+  -d '{"query":"How do environment variables work in Vite, and what is the VITE_ prefix for?","limit":5,"debug":true}'
+```
+
+When `debug` is `true`, the response includes:
+
+- `originalQuery`
+- `rewrittenQuery`
+- `rewriteApplied`
+- `rewriteReason`
+- `originalBranchCount`
+- `rewrittenBranchCount`
+- `fusedCount`
+- per-result `matchedBy`
+
+Manual verification guidance:
+
+- Use rewrite-applied conversational queries and confirm `rewriteApplied: true` with reasonable `rewrittenQuery` output.
+- Use heuristic skip queries such as exact identifiers or quoted terms and confirm `rewriteApplied: false` with the expected `rewriteReason`.
+- Check for rewritten-only fused hits by inspecting per-result `matchedBy` values in debug mode.
+- Simulate or force rewrite failure and confirm retrieval still returns original-query results with `rewriteReason: "model_failed"` in debug mode.
+
+Local references:
+
+- query rewrite PRD: `docs/features/query-rewrite/PRD.md`
+- checklist plan: `docs/features/query-rewrite/CHECKLIST_PLAN.md`
+- test queries: `docs/features/query-rewrite/TEST_QUERIES.md`
+
 ## Embedding Model and Quota Configuration
 
 Set these environment variables to control embedding model selection and embedding quota enforcement:
