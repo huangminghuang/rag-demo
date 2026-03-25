@@ -134,4 +134,84 @@ describe("retrieveRelevantChunks", () => {
       },
     ]);
   });
+
+  it("returns rewrite and provenance debug metadata only when debug mode is requested", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-original-only",
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+        },
+        {
+          chunkId: "chunk-both",
+          content: "Shared hit",
+          url: "https://vite.dev/guide/shared",
+          title: "Shared",
+          anchor: null,
+          similarity: 0.78,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-both",
+          content: "Shared hit",
+          url: "https://vite.dev/guide/shared",
+          title: "Shared",
+          anchor: null,
+          similarity: 0.81,
+        },
+      ]);
+
+    const result = await retrieveRelevantChunks(
+      "How do I configure a proxy in Vite?",
+      { limit: 2, threshold: 0.6, debug: true },
+      {
+        searchByQuery,
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: true,
+          originalQuery: "How do I configure a proxy in Vite?",
+          rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+          reason: "applied",
+        }),
+      },
+    );
+
+    expect(result).toEqual({
+      chunks: [
+        {
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+          matchedBy: "original",
+        },
+        {
+          content: "Shared hit",
+          url: "https://vite.dev/guide/shared",
+          title: "Shared",
+          anchor: null,
+          similarity: 0.81,
+          matchedBy: "both",
+        },
+      ],
+      debug: {
+        originalQuery: "How do I configure a proxy in Vite?",
+        rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 2,
+        rewrittenBranchCount: 1,
+        fusedCount: 2,
+      },
+    });
+  });
 });

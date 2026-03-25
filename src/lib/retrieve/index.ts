@@ -2,7 +2,11 @@ import { db } from "@/lib/db";
 import { chunks, documents } from "@/lib/db/schema";
 import { generateEmbedding } from "@/lib/ingest/embeddings";
 import { sql, eq, gt } from "drizzle-orm";
-import { fuseRetrievalResults, type RetrievalBranchResult } from "./fusion";
+import {
+  fuseRetrievalResults,
+  type RetrievalBranchResult,
+  type RetrievalMatchSource,
+} from "./fusion";
 import { resolveQueryRewriteConfig, type QueryRewriteConfig } from "./queryRewriteConfig";
 import {
   rewriteQueryForRetrieval,
@@ -15,6 +19,25 @@ export interface RetrievalResult {
   title: string | null;
   anchor: string | null;
   similarity: number;
+}
+
+export interface RetrievalDebugChunk extends RetrievalResult {
+  matchedBy: RetrievalMatchSource;
+}
+
+export interface RetrievalDebugMetadata {
+  originalQuery: string;
+  rewrittenQuery: string | null;
+  rewriteApplied: boolean;
+  rewriteReason: QueryRewriteDecision["reason"];
+  originalBranchCount: number;
+  rewrittenBranchCount: number;
+  fusedCount: number;
+}
+
+export interface RetrievalDebugResponse {
+  chunks: RetrievalDebugChunk[];
+  debug: RetrievalDebugMetadata;
 }
 
 type StoredRetrievalResult = RetrievalBranchResult;
@@ -32,6 +55,12 @@ interface RetrieveRelevantChunksDependencies {
   ) => Promise<QueryRewriteDecision>;
 }
 
+interface RetrieveRelevantChunksOptions {
+  limit?: number;
+  threshold?: number;
+  debug?: boolean;
+}
+
 const MIN_FUSION_BRANCH_LIMIT = 8;
 
 function toPublicResult(result: StoredRetrievalResult): RetrievalResult {
@@ -41,6 +70,16 @@ function toPublicResult(result: StoredRetrievalResult): RetrievalResult {
     title: result.title,
     anchor: result.anchor,
     similarity: result.similarity,
+  };
+}
+
+function toDebugChunk(
+  result: StoredRetrievalResult,
+  matchedBy: RetrievalMatchSource,
+): RetrievalDebugChunk {
+  return {
+    ...toPublicResult(result),
+    matchedBy,
   };
 }
 
@@ -85,10 +124,20 @@ async function searchChunksByQuery(
 
 export async function retrieveRelevantChunks(
   query: string,
-  options: { limit?: number; threshold?: number } = {},
+  options: RetrieveRelevantChunksOptions & { debug: true },
+  dependencies?: RetrieveRelevantChunksDependencies,
+): Promise<RetrievalDebugResponse>;
+export async function retrieveRelevantChunks(
+  query: string,
+  options?: RetrieveRelevantChunksOptions,
+  dependencies?: RetrieveRelevantChunksDependencies,
+): Promise<RetrievalResult[]>;
+export async function retrieveRelevantChunks(
+  query: string,
+  options: RetrieveRelevantChunksOptions = {},
   dependencies: RetrieveRelevantChunksDependencies = {},
-): Promise<RetrievalResult[]> {
-  const { limit = 5, threshold = 0.5 } = options;
+): Promise<RetrievalResult[] | RetrievalDebugResponse> {
+  const { limit = 5, threshold = 0.5, debug = false } = options;
   const searchByQuery =
     dependencies.searchByQuery ??
     ((searchQuery, searchOptions) =>
@@ -103,6 +152,21 @@ export async function retrieveRelevantChunks(
 
   if (!rewriteDecision.applied) {
     const originalOnlyResults = await searchByQuery(query, { limit, threshold });
+    if (debug) {
+      return {
+        chunks: originalOnlyResults.map((result) => toDebugChunk(result, "original")),
+        debug: {
+          originalQuery: rewriteDecision.originalQuery,
+          rewrittenQuery: null,
+          rewriteApplied: false,
+          rewriteReason: rewriteDecision.reason,
+          originalBranchCount: originalOnlyResults.length,
+          rewrittenBranchCount: 0,
+          fusedCount: originalOnlyResults.length,
+        },
+      };
+    }
+
     return originalOnlyResults.map(toPublicResult);
   }
 
@@ -117,6 +181,21 @@ export async function retrieveRelevantChunks(
     rewrittenResults,
     limit,
   });
+
+  if (debug) {
+    return {
+      chunks: fusedResults.map((result) => toDebugChunk(result, result.matchedBy)),
+      debug: {
+        originalQuery: rewriteDecision.originalQuery,
+        rewrittenQuery: rewriteDecision.rewrittenQuery,
+        rewriteApplied: true,
+        rewriteReason: rewriteDecision.reason,
+        originalBranchCount: originalResults.length,
+        rewrittenBranchCount: rewrittenResults.length,
+        fusedCount: fusedResults.length,
+      },
+    };
+  }
 
   return fusedResults.map(toPublicResult);
 }

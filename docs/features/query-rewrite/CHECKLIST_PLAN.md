@@ -38,20 +38,20 @@
 - [x] Add tests proving rewrite affects both retrieval entry points through the shared retrieval boundary.
 
 ## 5. Explicit Retrieve Debug Mode
-- [ ] Add an explicit `debug` flag to `POST /api/retrieve`.
-- [ ] Restrict expanded rewrite/fusion debug output to explicit debug requests only.
-- [ ] Return debug metadata including:
-- [ ] `originalQuery`
-- [ ] `rewrittenQuery`
-- [ ] `rewriteApplied`
-- [ ] `rewriteReason`
-- [ ] `originalBranchCount`
-- [ ] `rewrittenBranchCount`
-- [ ] `fusedCount`
-- [ ] per-result `matchedBy`
-- [ ] Keep the normal retrieve response shape unchanged when debug mode is not requested.
-- [ ] Do not expose rewrite debug payload from `POST /api/chat` in phase 1.
-- [ ] Add tests covering debug and non-debug response shapes.
+- [x] Add an explicit `debug` flag to `POST /api/retrieve`.
+- [x] Restrict expanded rewrite/fusion debug output to explicit debug requests only.
+- [x] Return debug metadata including:
+- [x] `originalQuery`
+- [x] `rewrittenQuery`
+- [x] `rewriteApplied`
+- [x] `rewriteReason`
+- [x] `originalBranchCount`
+- [x] `rewrittenBranchCount`
+- [x] `fusedCount`
+- [x] per-result `matchedBy`
+- [x] Keep the normal retrieve response shape unchanged when debug mode is not requested.
+- [x] Do not expose rewrite debug payload from `POST /api/chat` in phase 1.
+- [x] Add tests covering debug and non-debug response shapes.
 
 ## 6. Rollout and Documentation
 - [ ] Document all `QUERY_REWRITE_*` environment variables in `README.md`.

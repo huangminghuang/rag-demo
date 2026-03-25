@@ -58,6 +58,7 @@ describe("POST /api/retrieve", () => {
     expect(retrieveRelevantChunks).toHaveBeenCalledWith(
       "How do environment variables work in Vite?",
       {
+        debug: false,
         limit: 4,
         threshold: 0.7,
       },
@@ -72,6 +73,76 @@ describe("POST /api/retrieve", () => {
           similarity: 0.87,
         },
       ],
+    });
+  });
+
+  it("returns rewrite and fusion debug details only when explicit debug mode is requested", async () => {
+    retrieveRelevantChunks.mockResolvedValue({
+      chunks: [
+        {
+          content: "Retrieved chunk",
+          url: "https://vite.dev/guide/env",
+          title: "Env Variables",
+          anchor: null,
+          similarity: 0.87,
+          matchedBy: "both",
+        },
+      ],
+      debug: {
+        originalQuery: "How do environment variables work in Vite?",
+        rewrittenQuery: "Vite environment variables import.meta.env VITE_ prefix",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 3,
+        rewrittenBranchCount: 2,
+        fusedCount: 1,
+      },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost:3000/api/retrieve", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "csrf_token=test-token",
+          "x-csrf-token": "test-token",
+        },
+        body: JSON.stringify({
+          query: "How do environment variables work in Vite?",
+          debug: true,
+        }),
+      }),
+    );
+
+    expect(retrieveRelevantChunks).toHaveBeenCalledWith(
+      "How do environment variables work in Vite?",
+      {
+        debug: true,
+        limit: 5,
+        threshold: 0.55,
+      },
+    );
+    await expect(response.json()).resolves.toEqual({
+      chunks: [
+        {
+          content: "Retrieved chunk",
+          url: "https://vite.dev/guide/env",
+          title: "Env Variables",
+          anchor: null,
+          similarity: 0.87,
+          matchedBy: "both",
+        },
+      ],
+      debug: {
+        originalQuery: "How do environment variables work in Vite?",
+        rewrittenQuery: "Vite environment variables import.meta.env VITE_ prefix",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 3,
+        rewrittenBranchCount: 2,
+        fusedCount: 1,
+      },
     });
   });
 });

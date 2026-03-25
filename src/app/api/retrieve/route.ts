@@ -13,18 +13,23 @@ export async function POST(req: Request) {
     const auth = await requireUser();
     if (!auth.ok) return auth.response;
 
-    const { query, limit, threshold } = await req.json();
+    const { query, limit, threshold, debug } = await req.json();
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    const chunks = await retrieveRelevantChunks(query, {
+    const retrievalResult = await retrieveRelevantChunks(query, {
       limit: typeof limit === "number" && limit > 0 ? limit : 5,
       threshold: resolveRetrieveThreshold(threshold),
+      debug: debug === true,
     });
 
-    return NextResponse.json({ chunks });
+    if (debug === true) {
+      return NextResponse.json(retrievalResult);
+    }
+
+    return NextResponse.json({ chunks: retrievalResult });
   } catch (error) {
     if (isEmbeddingQuotaExceededError(error)) {
       const response = NextResponse.json(
