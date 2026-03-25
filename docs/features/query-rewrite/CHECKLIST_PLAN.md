@@ -1,15 +1,15 @@
 # Query Rewrite Checklist Plan
 
 ## 1. Config and Heuristic Gate
-- [ ] Add query rewrite config resolution for model name, API version, API key fallback, execution settings, and debug logging.
-- [ ] Add a master switch to enable or disable query rewrite globally.
-- [ ] Add heuristic gating inside the rewrite module.
-- [ ] Skip rewrite for quoted queries.
-- [ ] Skip rewrite for identifier-like queries.
-- [ ] Skip rewrite for context-dependent follow-up queries.
-- [ ] Skip rewrite for very short or very long queries based on the agreed heuristic.
-- [ ] Return explicit structured skip reasons from the rewrite decision layer.
-- [ ] Add tests covering config defaults, validation, API-key fallback, and heuristic skip decisions.
+- [x] Add query rewrite config resolution for model name, API version, API key fallback, execution settings, and debug logging.
+- [x] Add a master switch to enable or disable query rewrite globally.
+- [x] Add heuristic gating inside the rewrite module.
+- [x] Skip rewrite for quoted queries.
+- [x] Skip rewrite for identifier-like queries.
+- [x] Skip rewrite for context-dependent follow-up queries.
+- [x] Skip rewrite for very short or very long queries based on the agreed heuristic.
+- [x] Return explicit structured skip reasons from the rewrite decision layer.
+- [x] Add tests covering config defaults, validation, API-key fallback, and heuristic skip decisions.
 
 ## 2. Rewrite Prompt and Decision Layer
 - [ ] Add a Vite-aware query rewrite prompt builder.

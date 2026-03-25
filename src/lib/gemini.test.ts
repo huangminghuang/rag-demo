@@ -118,3 +118,21 @@ describe("getEnrichmentApiKey", () => {
     expect(getEnrichmentApiKey()).toBe("test-api-key");
   });
 });
+
+describe("getQueryRewriteApiKey", () => {
+  it("uses QUERY_REWRITE_API_KEY when it is configured", async () => {
+    process.env.QUERY_REWRITE_API_KEY = "rewrite-key";
+
+    const { getQueryRewriteApiKey } = await loadModule();
+
+    expect(getQueryRewriteApiKey()).toBe("rewrite-key");
+  });
+
+  it("falls back to GEMINI_API_KEY when QUERY_REWRITE_API_KEY is not configured", async () => {
+    delete process.env.QUERY_REWRITE_API_KEY;
+
+    const { getQueryRewriteApiKey } = await loadModule();
+
+    expect(getQueryRewriteApiKey()).toBe("test-api-key");
+  });
+});
