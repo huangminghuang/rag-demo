@@ -31,11 +31,11 @@
 - [x] Add tests for deduping, provenance assignment, score retention, and tie-break behavior.
 
 ## 4. Shared Retrieval Integration
-- [ ] Integrate query rewrite into `retrieveRelevantChunks(...)`.
-- [ ] Ensure both `POST /api/retrieve` and `POST /api/chat` use the same rewrite-enabled retrieval path.
-- [ ] Keep original-only retrieval behavior when rewrite is skipped or fails.
-- [ ] Keep chat response shape unchanged.
-- [ ] Add tests proving rewrite affects both retrieval entry points through the shared retrieval boundary.
+- [x] Integrate query rewrite into `retrieveRelevantChunks(...)`.
+- [x] Ensure both `POST /api/retrieve` and `POST /api/chat` use the same rewrite-enabled retrieval path.
+- [x] Keep original-only retrieval behavior when rewrite is skipped or fails.
+- [x] Keep chat response shape unchanged.
+- [x] Add tests proving rewrite affects both retrieval entry points through the shared retrieval boundary.
 
 ## 5. Explicit Retrieve Debug Mode
 - [ ] Add an explicit `debug` flag to `POST /api/retrieve`.
