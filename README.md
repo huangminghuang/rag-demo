@@ -22,7 +22,7 @@ Docker Compose reads `.env` automatically. If you also want overrides from `.env
 docker compose --env-file .env --env-file .env.local run --rm migration
 ```
 
-Schema changes now use committed SQL migrations in [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle). After editing [`src/lib/db/schema.ts`](/Users/huang-minghuang/projects/content-embedding/src/lib/db/schema.ts), generate a new migration locally with:
+Schema changes now use committed SQL migrations in [`docker/migration/drizzle`](docker/migration/drizzle). After editing [`src/lib/db/schema.ts`](src/lib/db/schema.ts), generate a new migration locally with:
 
 ```bash
 npm run db:generate
@@ -111,6 +111,40 @@ curl "http://localhost:3000/api/ingest?limit=20" \
 ```
 
 The admin debug response includes recent chunk-level enrichment status, embedding input version, and embedding input preview. This endpoint is intended for rollout diagnostics and does not change the public retrieval API.
+
+## Metadata Enrichment Model Configuration
+
+Set these environment variables to control chunk-metadata enrichment during ingestion:
+
+- `ENRICH_MODEL_API_KEY` (optional; falls back to `GEMINI_API_KEY`)
+- `ENRICH_MODEL_NAME` (default: `gemini-2.5-flash`)
+- `ENRICH_MODEL_API_VERSION` (default: `v1beta`)
+- `ENRICH_EXECUTION_MODE` (`sequential` or `bounded_parallel`, default: `sequential`)
+- `ENRICH_MAX_CONCURRENCY` (default: `1`; must be at least `2` when `ENRICH_EXECUTION_MODE=bounded_parallel`)
+- `ENRICH_TIMEOUT_MS` (default: `15000`)
+- `ENRICH_MAX_RETRIES` (default: `2`; may be `0` to disable retries)
+- `ENRICH_METADATA_CONTENT_KINDS` (default: `prose,table,code`)
+- `ENRICH_METADATA_MIN_CHARS` (default: `300`)
+
+How the current codebase uses these settings:
+
+- `ENRICH_MODEL_API_KEY` lets enrichment use a dedicated Gemini API key; when unset, enrichment falls back to `GEMINI_API_KEY`.
+- `ENRICH_MODEL_NAME` and `ENRICH_MODEL_API_VERSION` choose the Gemini model used for chunk enrichment requests during ingestion.
+- `ENRICH_EXECUTION_MODE`, `ENRICH_MAX_CONCURRENCY`, `ENRICH_TIMEOUT_MS`, and `ENRICH_MAX_RETRIES` control the enrichment worker behavior in `src/lib/ingest/enrichment.ts`.
+- `ENRICH_METADATA_CONTENT_KINDS` controls which chunk kinds are eligible for enrichment.
+- `ENRICH_METADATA_MIN_CHARS` skips short non-table chunks; table chunks stay eligible even when they are below the normal minimum size threshold.
+
+Current enrichment coverage:
+
+- `prose` chunks require `summary`, `keywords`, and `hypothetical_questions`
+- `table` chunks also require `table_summary`
+- `code` chunks also require either `code_summary` or `api_symbols`
+
+Operational notes:
+
+- Changing enrichment config changes the derived document processing hash, so existing documents can be reprocessed even when the parsed HTML content has not changed.
+- Use `forceReindex: true` with `POST /api/ingest` when you want an explicit backfill run instead of waiting for hash-driven reprocessing.
+- Internal debug inspection for stored enrichment status and embedding input previews is available through `GET /api/ingest` for admin users.
 
 ### Optional cleanup
 
@@ -231,7 +265,7 @@ docker compose --env-file .env --env-file .env.local run --rm seed_admin
 Notes:
 - Seeding is an upsert by email and enforces `role='admin'`.
 - Docker Compose does not merge `.env` and `.env.local` automatically; pass both with `--env-file .env --env-file .env.local` when you want local overrides.
-- The `seed_admin` container runs [`docker/seed-admin/seed-default-admin.sh`](/Users/huang-minghuang/projects/content-embedding/docker/seed-admin/seed-default-admin.sh) with `psql`.
-- The `migration` container runs [`docker/migration/run-migrations.sh`](/Users/huang-minghuang/projects/content-embedding/docker/migration/run-migrations.sh) and applies committed SQL files from [`docker/migration/drizzle`](/Users/huang-minghuang/projects/content-embedding/docker/migration/drizzle).
+- The `seed_admin` container runs [`docker/seed-admin/seed-default-admin.sh`](docker/seed-admin/seed-default-admin.sh) with `psql`.
+- The `migration` container runs [`docker/migration/run-migrations.sh`](docker/migration/run-migrations.sh) and applies committed SQL files from [`docker/migration/drizzle`](docker/migration/drizzle).
 - `migration` and `seed_admin` use dedicated minimal Docker build contexts under `docker/`, which also serve as the source of truth for their scripts and migration assets.
 - `docker compose up app` now runs `seed_admin` before app startup.

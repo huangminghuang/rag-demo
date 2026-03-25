@@ -1,4 +1,4 @@
-import { genAI } from "@/lib/gemini";
+import { getEnrichmentGenAI } from "@/lib/gemini";
 import type { EnrichmentConfig } from "./enrichmentConfig";
 import type { StructureAwareChunk } from "./structureTypes";
 
@@ -74,7 +74,7 @@ export async function enrichChunkWithModel(
   chunk: StructureAwareChunk,
   config: EnrichmentConfig,
 ): Promise<RawChunkEnrichment> {
-  const model = genAI.getGenerativeModel(
+  const model = getEnrichmentGenAI().getGenerativeModel(
     { model: config.modelProfile.model },
     { apiVersion: config.modelProfile.apiVersion },
   );
