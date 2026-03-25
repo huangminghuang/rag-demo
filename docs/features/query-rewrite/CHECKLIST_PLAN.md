@@ -12,14 +12,14 @@
 - [x] Add tests covering config defaults, validation, API-key fallback, and heuristic skip decisions.
 
 ## 2. Rewrite Prompt and Decision Layer
-- [ ] Add a Vite-aware query rewrite prompt builder.
-- [ ] Ensure the prompt asks for one keyword-rich rewritten query rather than multiple variants.
-- [ ] Ensure the prompt preserves user intent and never answers the question.
-- [ ] Add rewrite output normalization for trimming, whitespace collapse, and empty-output rejection.
-- [ ] Add equivalence detection between rewritten and original queries.
-- [ ] Return `model_failed` when rewrite generation fails.
-- [ ] Add debug logging of original query, rewritten query, and rewrite reason only when rewrite debug logging is enabled.
-- [ ] Add tests for successful rewrite, normalization, equivalence detection, and model-failure fallback.
+- [x] Add a Vite-aware query rewrite prompt builder.
+- [x] Ensure the prompt asks for one keyword-rich rewritten query rather than multiple variants.
+- [x] Ensure the prompt preserves user intent and never answers the question.
+- [x] Add rewrite output normalization for trimming, whitespace collapse, and empty-output rejection.
+- [x] Add equivalence detection between rewritten and original queries.
+- [x] Return `model_failed` when rewrite generation fails.
+- [x] Add debug logging of original query, rewritten query, and rewrite reason only when rewrite debug logging is enabled.
+- [x] Add tests for successful rewrite, normalization, equivalence detection, and model-failure fallback.
 
 ## 3. Fusion and Provenance
 - [ ] Add dual retrieval fusion using both original-query and rewritten-query retrieval branches.

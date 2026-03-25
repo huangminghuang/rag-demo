@@ -1,4 +1,5 @@
 import type { QueryRewriteConfig } from "./queryRewriteConfig";
+import { buildQueryRewritePrompt } from "./queryRewritePrompt";
 
 export type QueryRewriteEligibilityReason =
   | "eligible"
@@ -7,12 +8,32 @@ export type QueryRewriteEligibilityReason =
   | "query_too_long"
   | "identifier_like"
   | "quoted_query"
-  | "context_dependent";
+  | "context_dependent"
+  | "equivalent_to_original"
+  | "model_failed";
 
 export interface QueryRewriteEligibility {
   eligible: boolean;
   normalizedQuery: string;
   reason: QueryRewriteEligibilityReason;
+}
+
+export type QueryRewriteDecision =
+  | {
+      applied: true;
+      originalQuery: string;
+      rewrittenQuery: string;
+      reason: "applied";
+    }
+  | {
+      applied: false;
+      originalQuery: string;
+      rewrittenQuery: null;
+      reason: Exclude<QueryRewriteEligibilityReason, "eligible">;
+    };
+
+interface RewriteQueryForRetrievalDependencies {
+  rewriteModel?: (prompt: string, config: QueryRewriteConfig) => Promise<string>;
 }
 
 const MAX_QUERY_WORDS = 30;
@@ -89,4 +110,100 @@ export function decideQueryRewriteEligibility(
   }
 
   return { eligible: true, normalizedQuery, reason: "eligible" };
+}
+
+function normalizeRewrittenQuery(query: string): string | null {
+  const normalized = normalizeQuery(query);
+  return normalized.length > 0 ? normalized : null;
+}
+
+function areEquivalentQueries(originalQuery: string, rewrittenQuery: string): boolean {
+  return normalizeQuery(originalQuery).toLowerCase() === normalizeQuery(rewrittenQuery).toLowerCase();
+}
+
+function logQueryRewriteDecision(
+  config: QueryRewriteConfig,
+  decision: QueryRewriteDecision,
+): void {
+  if (!config.debug) {
+    return;
+  }
+
+  console.info("[query-rewrite-debug]", {
+    originalQuery: decision.originalQuery,
+    rewrittenQuery: decision.rewrittenQuery,
+    reason: decision.reason,
+  });
+}
+
+async function rewriteQueryWithModel(
+  prompt: string,
+  config: QueryRewriteConfig,
+): Promise<string> {
+  const { getQueryRewriteGenAI } = await import("@/lib/gemini");
+  const model = getQueryRewriteGenAI().getGenerativeModel(
+    { model: config.modelName },
+    { apiVersion: config.apiVersion },
+  );
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+// Decide whether to rewrite a query and, when eligible, attempt to generate one rewritten retrieval query.
+export async function rewriteQueryForRetrieval(
+  query: string,
+  config: QueryRewriteConfig,
+  dependencies: RewriteQueryForRetrievalDependencies = {},
+): Promise<QueryRewriteDecision> {
+  const eligibility = decideQueryRewriteEligibility(query, config);
+
+  if (!eligibility.eligible) {
+    const decision: QueryRewriteDecision = {
+      applied: false,
+      originalQuery: eligibility.normalizedQuery,
+      rewrittenQuery: null,
+      reason: eligibility.reason,
+    };
+    logQueryRewriteDecision(config, decision);
+    return decision;
+  }
+
+  const rewriteModel = dependencies.rewriteModel || rewriteQueryWithModel;
+
+  try {
+    const rewrittenRaw = await rewriteModel(
+      buildQueryRewritePrompt(eligibility.normalizedQuery),
+      config,
+    );
+    const rewrittenQuery = normalizeRewrittenQuery(rewrittenRaw);
+
+    if (!rewrittenQuery || areEquivalentQueries(eligibility.normalizedQuery, rewrittenQuery)) {
+      const decision: QueryRewriteDecision = {
+        applied: false,
+        originalQuery: eligibility.normalizedQuery,
+        rewrittenQuery: null,
+        reason: "equivalent_to_original",
+      };
+      logQueryRewriteDecision(config, decision);
+      return decision;
+    }
+
+    const decision: QueryRewriteDecision = {
+      applied: true,
+      originalQuery: eligibility.normalizedQuery,
+      rewrittenQuery,
+      reason: "applied",
+    };
+    logQueryRewriteDecision(config, decision);
+    return decision;
+  } catch {
+    const decision: QueryRewriteDecision = {
+      applied: false,
+      originalQuery: eligibility.normalizedQuery,
+      rewrittenQuery: null,
+      reason: "model_failed",
+    };
+    logQueryRewriteDecision(config, decision);
+    return decision;
+  }
 }
