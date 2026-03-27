@@ -54,6 +54,12 @@ describe("decideQueryRewriteEligibility", () => {
       normalizedQuery: "\"VITE_ prefix\"",
       reason: "quoted_query",
     });
+
+    expect(decideQueryRewriteEligibility("\"VITE_\" prefix", config)).toEqual({
+      eligible: false,
+      normalizedQuery: "\"VITE_\" prefix",
+      reason: "quoted_query",
+    });
   });
 
   it("skips context-dependent follow-up queries", () => {
@@ -89,6 +95,24 @@ describe("decideQueryRewriteEligibility", () => {
       normalizedQuery:
         "Can you explain in detail how Vite handles environment variables across different modes, how .env, .env.local, .env.production, and .env.development files interact, which variables are exposed to client code, and how this compares to traditional bundlers?",
       reason: "query_too_long",
+    });
+  });
+
+  it("skips exact command queries", () => {
+    const config = resolveQueryRewriteConfig({
+      QUERY_REWRITE_ENABLED: "true",
+    } as NodeJS.ProcessEnv);
+
+    expect(decideQueryRewriteEligibility("vite build", config)).toEqual({
+      eligible: false,
+      normalizedQuery: "vite build",
+      reason: "identifier_like",
+    });
+
+    expect(decideQueryRewriteEligibility("vite preview", config)).toEqual({
+      eligible: false,
+      normalizedQuery: "vite preview",
+      reason: "identifier_like",
     });
   });
 });

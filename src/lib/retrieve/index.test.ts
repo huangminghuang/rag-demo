@@ -135,6 +135,51 @@ describe("retrieveRelevantChunks", () => {
     ]);
   });
 
+  it("falls back to original-only retrieval when rewrite generation fails", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi.fn().mockResolvedValue([
+      {
+        chunkId: "chunk-1",
+        content: "Original branch fallback",
+        url: "https://vite.dev/guide/env-and-mode",
+        title: "Env Variables and Modes",
+        anchor: null,
+        similarity: 0.88,
+      },
+    ]);
+
+    const results = await retrieveRelevantChunks(
+      "How do environment variables work in Vite?",
+      { limit: 3, threshold: 0.55 },
+      {
+        searchByQuery,
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: false,
+          originalQuery: "How do environment variables work in Vite?",
+          rewrittenQuery: null,
+          reason: "model_failed",
+        }),
+      },
+    );
+
+    expect(searchByQuery).toHaveBeenCalledTimes(1);
+    expect(searchByQuery).toHaveBeenCalledWith("How do environment variables work in Vite?", {
+      limit: 3,
+      threshold: 0.55,
+    });
+    expect(results).toEqual([
+      {
+        content: "Original branch fallback",
+        url: "https://vite.dev/guide/env-and-mode",
+        title: "Env Variables and Modes",
+        anchor: null,
+        similarity: 0.88,
+      },
+    ]);
+  });
+
   it("returns rewrite and provenance debug metadata only when debug mode is requested", async () => {
     const { retrieveRelevantChunks } = await import("./index");
     const searchByQuery = vi

@@ -38,6 +38,20 @@ interface RewriteQueryForRetrievalDependencies {
 
 const MAX_QUERY_WORDS = 30;
 const QUESTION_OPENERS = ["how", "what", "why", "when", "where"];
+const COMMAND_ENTRYPOINTS = new Set(["vite", "npm", "pnpm", "yarn", "bun", "npx", "node"]);
+const COMMAND_TERMS = new Set([
+  "build",
+  "preview",
+  "dev",
+  "serve",
+  "start",
+  "run",
+  "test",
+  "install",
+  "create",
+  "add",
+  "remove",
+]);
 const CONTEXT_DEPENDENT_PATTERNS = [
   /^what about\b/i,
   /^how does that\b/i,
@@ -54,7 +68,16 @@ function getWordCount(query: string): number {
 }
 
 function isQuotedQuery(query: string): boolean {
-  return /^["'`].+["'`]$/.test(query);
+  if (query.length < 2) {
+    return false;
+  }
+
+  const firstCharacter = query[0];
+  if (![`"`, "'", "`"].includes(firstCharacter)) {
+    return false;
+  }
+
+  return query.indexOf(firstCharacter, 1) > 1;
 }
 
 function isContextDependentQuery(query: string): boolean {
@@ -66,6 +89,27 @@ function isNaturalLanguageQuestion(query: string): boolean {
   return QUESTION_OPENERS.some((word) => lower.startsWith(`${word} `));
 }
 
+// Treat short CLI-style commands as exact inputs that should bypass rewrite.
+function isCommandLikeQuery(query: string): boolean {
+  if (isNaturalLanguageQuestion(query) || query.includes("?")) {
+    return false;
+  }
+
+  const tokens = query.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2 || tokens.length > 5) {
+    return false;
+  }
+
+  if (tokens.some((token) => !/^[a-z0-9._:/=-]+$/i.test(token))) {
+    return false;
+  }
+
+  return (
+    COMMAND_ENTRYPOINTS.has(tokens[0].toLowerCase()) ||
+    tokens.some((token) => COMMAND_TERMS.has(token.toLowerCase()))
+  );
+}
+
 function isIdentifierLikeQuery(query: string): boolean {
   const hasIdentifierPunctuation = /[_./():{}-]/.test(query);
   const hasCamelCase = /[a-z][A-Z]/.test(query);
@@ -73,7 +117,7 @@ function isIdentifierLikeQuery(query: string): boolean {
     return false;
   }
 
-  return hasIdentifierPunctuation || hasCamelCase;
+  return hasIdentifierPunctuation || hasCamelCase || isCommandLikeQuery(query);
 }
 
 // Decide whether a query should be rewritten before retrieval, without calling the model yet.

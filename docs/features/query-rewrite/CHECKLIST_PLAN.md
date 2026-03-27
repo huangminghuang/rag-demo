@@ -66,9 +66,9 @@
 - [x] fallback behavior on rewrite failure
 
 ## 7. Verification and Acceptance
-- [ ] Confirm exact identifier-style queries are not degraded by rewrite.
-- [ ] Confirm natural-language Vite questions can benefit from rewritten-query branch hits.
-- [ ] Confirm rewritten-query failures do not break retrieval.
-- [ ] Confirm provenance and branch counts are visible in retrieve debug mode.
-- [ ] Confirm chat uses the same rewrite-enabled retrieval pipeline without exposing debug internals.
-- [ ] Confirm the public retrieval API remains stable unless debug mode is explicitly requested.
+- [x] Confirm exact identifier-style queries are not degraded by rewrite.
+- [x] Confirm natural-language Vite questions can benefit from rewritten-query branch hits.
+- [x] Confirm rewritten-query failures do not break retrieval.
+- [x] Confirm provenance and branch counts are visible in retrieve debug mode.
+- [x] Confirm chat uses the same rewrite-enabled retrieval pipeline without exposing debug internals.
+- [x] Confirm the public retrieval API remains stable unless debug mode is explicitly requested.

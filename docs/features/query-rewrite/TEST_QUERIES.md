@@ -6,6 +6,8 @@ Version: `v1`
 
 ## Usage Notes
 
+- Run `npm run test:query-rewrite` to execute the automated query-rewrite suite.
+- The matrix table below is consumed directly by `src/lib/retrieve/queryRewriteMatrix.test.ts`, so changes here immediately affect the automated gating checks.
 - Use these queries with query rewrite disabled first, then enabled.
 - For `POST /api/retrieve`, prefer using the explicit debug flag so you can inspect:
   - `rewriteApplied`
@@ -18,6 +20,8 @@ Version: `v1`
   - whether rewrite was correctly applied or skipped
   - whether the rewritten query stayed faithful to the original intent
   - whether rewritten-branch hits improved recall without displacing strong exact matches
+
+The automated suite covers rewrite gating, rewrite decision behavior, fusion, retrieval debug shape, and chat/retrieve boundary stability. The live debug request below is still useful for qualitative inspection of rewritten phrasing and recall against a running dataset.
 
 ## Test Matrix
 
