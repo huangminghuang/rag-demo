@@ -33,6 +33,21 @@ export function getEnrichmentGenAI(env: NodeJS.ProcessEnv = process.env): Google
   return new GoogleGenerativeAI(getEnrichmentApiKey(env));
 }
 
+// Resolve the API key for query-rewrite requests, falling back to the shared Gemini key.
+export function getQueryRewriteApiKey(env: NodeJS.ProcessEnv = process.env): string {
+  const apiKey = env.QUERY_REWRITE_API_KEY || env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("QUERY_REWRITE_API_KEY or GEMINI_API_KEY must be defined in the environment variables.");
+  }
+
+  return apiKey;
+}
+
+// Create a Gemini client for query-rewrite requests so they can use a dedicated API key when configured.
+export function getQueryRewriteGenAI(env: NodeJS.ProcessEnv = process.env): GoogleGenerativeAI {
+  return new GoogleGenerativeAI(getQueryRewriteApiKey(env));
+}
+
 // Check whether verbose reasoning-model prompt logging is enabled for this request.
 function isReasoningVerboseDebugEnabled(): boolean {
   return process.env.REASONING_VERBOSE_DEBUG === "true";
