@@ -45,16 +45,16 @@
 - [x] Add tests covering debug and non-debug response shapes.
 
 ## 6. Documentation and Verification
-- [ ] Document all `HYBRID_*` environment variables in `README.md`.
-- [ ] Document how hybrid retrieval composes with query rewrite.
-- [ ] Document the hybrid retrieve debug workflow for `POST /api/retrieve`.
-- [ ] Add a hybrid retrieval test query set in `docs/features/hybrid-retrieval`.
-- [ ] Add manual verification guidance for:
-- [ ] exact identifier queries
-- [ ] file names and config paths
-- [ ] CLI command queries
-- [ ] conversational rewritten queries
-- [ ] hybrid disabled fallback behavior
+- [x] Document all `HYBRID_*` environment variables in `README.md`.
+- [x] Document how hybrid retrieval composes with query rewrite.
+- [x] Document the hybrid retrieve debug workflow for `POST /api/retrieve`.
+- [x] Add a hybrid retrieval test query set in `docs/features/hybrid-retrieval`.
+- [x] Add manual verification guidance for:
+- [x] exact identifier queries
+- [x] file names and config paths
+- [x] CLI command queries
+- [x] conversational rewritten queries
+- [x] hybrid disabled fallback behavior
 
 ## 7. Verification and Acceptance
 - [ ] Confirm exact identifier-style queries improve or remain stable under hybrid retrieval.
