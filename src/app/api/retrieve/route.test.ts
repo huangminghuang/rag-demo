@@ -85,7 +85,7 @@ describe("POST /api/retrieve", () => {
           title: "Env Variables",
           anchor: null,
           similarity: 0.87,
-          matchedBy: "both",
+          matchedBy: ["vector_original", "lexical_rewritten"],
         },
       ],
       debug: {
@@ -95,6 +95,12 @@ describe("POST /api/retrieve", () => {
         rewriteReason: "applied",
         originalBranchCount: 3,
         rewrittenBranchCount: 2,
+        branchCounts: {
+          vectorOriginal: 2,
+          lexicalOriginal: 1,
+          vectorRewritten: 1,
+          lexicalRewritten: 1,
+        },
         fusedCount: 1,
       },
     });
@@ -131,7 +137,7 @@ describe("POST /api/retrieve", () => {
           title: "Env Variables",
           anchor: null,
           similarity: 0.87,
-          matchedBy: "both",
+          matchedBy: ["vector_original", "lexical_rewritten"],
         },
       ],
       debug: {
@@ -141,6 +147,12 @@ describe("POST /api/retrieve", () => {
         rewriteReason: "applied",
         originalBranchCount: 3,
         rewrittenBranchCount: 2,
+        branchCounts: {
+          vectorOriginal: 2,
+          lexicalOriginal: 1,
+          vectorRewritten: 1,
+          lexicalRewritten: 1,
+        },
         fusedCount: 1,
       },
     });

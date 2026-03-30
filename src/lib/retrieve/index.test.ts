@@ -238,7 +238,7 @@ describe("retrieveRelevantChunks", () => {
           title: "Env",
           anchor: null,
           similarity: 0.82,
-          matchedBy: "original",
+          matchedBy: ["vector_original"],
         },
         {
           content: "Shared hit",
@@ -246,7 +246,7 @@ describe("retrieveRelevantChunks", () => {
           title: "Shared",
           anchor: null,
           similarity: 0.81,
-          matchedBy: "both",
+          matchedBy: ["vector_original", "vector_rewritten"],
         },
       ],
       debug: {
@@ -256,6 +256,12 @@ describe("retrieveRelevantChunks", () => {
         rewriteReason: "applied",
         originalBranchCount: 2,
         rewrittenBranchCount: 1,
+        branchCounts: {
+          vectorOriginal: 2,
+          lexicalOriginal: 0,
+          vectorRewritten: 1,
+          lexicalRewritten: 0,
+        },
         fusedCount: 2,
       },
     });
@@ -449,5 +455,119 @@ describe("retrieveRelevantChunks", () => {
         similarity: expect.any(Number),
       },
     ]);
+  });
+
+  it("returns branch-level debug metadata for hybrid retrieval when debug mode is requested", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-vector",
+          content: "Vector branch content",
+          url: "https://vite.dev/guide/features",
+          title: "Features",
+          anchor: null,
+          similarity: 0.82,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-shared",
+          content: "Shared rewritten vector content",
+          url: "https://vite.dev/guide/dep-pre-bundling",
+          title: "Dependency Pre-Bundling",
+          anchor: null,
+          similarity: 0.84,
+        },
+      ]);
+    const searchLexically = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-shared",
+          content: "Shared rewritten vector content",
+          url: "https://vite.dev/guide/dep-pre-bundling",
+          title: "Dependency Pre-Bundling",
+          anchor: null,
+          similarity: 0.79,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-lexical-rewritten",
+          content: "Rewritten lexical match",
+          url: "https://vite.dev/config/dep-optimization-options",
+          title: "Dep Optimization Options",
+          anchor: null,
+          similarity: 0.77,
+        },
+      ]);
+
+    const result = await retrieveRelevantChunks(
+      "How does Vite dependency pre-bundling work?",
+      { limit: 3, threshold: 0.6, debug: true },
+      {
+        searchByQuery,
+        searchLexically,
+        resolveHybridConfig: () =>
+          resolveHybridRetrievalConfig({
+            HYBRID_RETRIEVAL_ENABLED: "true",
+            HYBRID_PRE_FUSION_LIMIT: "12",
+          } as unknown as NodeJS.ProcessEnv),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as unknown as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: true,
+          originalQuery: "How does Vite dependency pre-bundling work?",
+          rewrittenQuery: "Vite dependency pre-bundling optimizeDeps esbuild dev server",
+          reason: "applied",
+        }),
+      },
+    );
+
+    expect(result).toEqual({
+      chunks: [
+        {
+          content: "Shared rewritten vector content",
+          url: "https://vite.dev/guide/dep-pre-bundling",
+          title: "Dependency Pre-Bundling",
+          anchor: null,
+          similarity: expect.any(Number),
+          matchedBy: ["lexical_original", "vector_rewritten"],
+        },
+        {
+          content: "Vector branch content",
+          url: "https://vite.dev/guide/features",
+          title: "Features",
+          anchor: null,
+          similarity: expect.any(Number),
+          matchedBy: ["vector_original"],
+        },
+        {
+          content: "Rewritten lexical match",
+          url: "https://vite.dev/config/dep-optimization-options",
+          title: "Dep Optimization Options",
+          anchor: null,
+          similarity: expect.any(Number),
+          matchedBy: ["lexical_rewritten"],
+        },
+      ],
+      debug: {
+        originalQuery: "How does Vite dependency pre-bundling work?",
+        rewrittenQuery: "Vite dependency pre-bundling optimizeDeps esbuild dev server",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 2,
+        rewrittenBranchCount: 2,
+        branchCounts: {
+          vectorOriginal: 1,
+          lexicalOriginal: 1,
+          vectorRewritten: 1,
+          lexicalRewritten: 1,
+        },
+        fusedCount: 3,
+      },
+    });
   });
 });

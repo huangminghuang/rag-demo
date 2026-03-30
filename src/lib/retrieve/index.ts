@@ -29,7 +29,14 @@ export interface RetrievalResult {
 }
 
 export interface RetrievalDebugChunk extends RetrievalResult {
-  matchedBy: RetrievalMatchSource;
+  matchedBy: RetrievalBranchSource[];
+}
+
+export interface RetrievalDebugBranchCounts {
+  vectorOriginal: number;
+  lexicalOriginal: number;
+  vectorRewritten: number;
+  lexicalRewritten: number;
 }
 
 export interface RetrievalDebugMetadata {
@@ -39,6 +46,7 @@ export interface RetrievalDebugMetadata {
   rewriteReason: QueryRewriteDecision["reason"];
   originalBranchCount: number;
   rewrittenBranchCount: number;
+  branchCounts: RetrievalDebugBranchCounts;
   fusedCount: number;
 }
 
@@ -85,29 +93,31 @@ function toPublicResult(result: StoredRetrievalResult): RetrievalResult {
   };
 }
 
-// Collapse branch-level hybrid provenance back into the current debug surface until hybrid debug expands in phase 1.
-function toLegacyMatchSource(matchedBy: RetrievalBranchSource[]): RetrievalMatchSource {
-  const hasOriginal = matchedBy.some(
-    (source) => source === "vector_original" || source === "lexical_original",
-  );
-  const hasRewritten = matchedBy.some(
-    (source) => source === "vector_rewritten" || source === "lexical_rewritten",
-  );
-
-  if (hasOriginal && hasRewritten) {
-    return "both";
-  }
-
-  return hasOriginal ? "original" : "rewritten";
-}
-
 function toDebugChunk(
   result: StoredRetrievalResult,
-  matchedBy: RetrievalMatchSource,
+  matchedBy: RetrievalBranchSource[],
 ): RetrievalDebugChunk {
   return {
     ...toPublicResult(result),
     matchedBy,
+  };
+}
+
+function toLegacyDebugMatchedBy(matchedBy: RetrievalMatchSource): RetrievalBranchSource[] {
+  if (matchedBy === "both") {
+    return ["vector_original", "vector_rewritten"];
+  }
+
+  return matchedBy === "original" ? ["vector_original"] : ["vector_rewritten"];
+}
+
+function createBranchCounts(overrides: Partial<RetrievalDebugBranchCounts>): RetrievalDebugBranchCounts {
+  return {
+    vectorOriginal: 0,
+    lexicalOriginal: 0,
+    vectorRewritten: 0,
+    lexicalRewritten: 0,
+    ...overrides,
   };
 }
 
@@ -201,6 +211,9 @@ export async function retrieveRelevantChunks(
           rewriteReason: rewriteDecision.reason,
           originalBranchCount: originalOnlyResults.length,
           rewrittenBranchCount: 0,
+          branchCounts: createBranchCounts({
+            vectorOriginal: originalOnlyResults.length,
+          }),
           fusedCount: originalOnlyResults.length,
         },
       };
@@ -224,7 +237,9 @@ export async function retrieveRelevantChunks(
 
     if (debug) {
       return {
-        chunks: fusedResults.map((result) => toDebugChunk(result, result.matchedBy)),
+        chunks: fusedResults.map((result) =>
+          toDebugChunk(result, toLegacyDebugMatchedBy(result.matchedBy)),
+        ),
         debug: {
           originalQuery: rewriteDecision.originalQuery,
           rewrittenQuery: rewriteDecision.rewrittenQuery,
@@ -232,6 +247,10 @@ export async function retrieveRelevantChunks(
           rewriteReason: rewriteDecision.reason,
           originalBranchCount: originalResults.length,
           rewrittenBranchCount: rewrittenResults.length,
+          branchCounts: createBranchCounts({
+            vectorOriginal: originalResults.length,
+            vectorRewritten: rewrittenResults.length,
+          }),
           fusedCount: fusedResults.length,
         },
       };
@@ -283,7 +302,7 @@ export async function retrieveRelevantChunks(
 
   if (debug) {
     return {
-      chunks: hybridFusedResults.map((result) => toDebugChunk(result, toLegacyMatchSource(result.matchedBy))),
+      chunks: hybridFusedResults.map((result) => toDebugChunk(result, result.matchedBy)),
       debug: {
         originalQuery: rewriteDecision.originalQuery,
         rewrittenQuery: rewriteDecision.rewrittenQuery,
@@ -291,6 +310,12 @@ export async function retrieveRelevantChunks(
         rewriteReason: rewriteDecision.reason,
         originalBranchCount: originalVectorResults.length + originalLexicalResults.length,
         rewrittenBranchCount: rewrittenVectorResults.length + rewrittenLexicalResults.length,
+        branchCounts: createBranchCounts({
+          vectorOriginal: originalVectorResults.length,
+          lexicalOriginal: originalLexicalResults.length,
+          vectorRewritten: rewrittenVectorResults.length,
+          lexicalRewritten: rewrittenLexicalResults.length,
+        }),
         fusedCount: hybridFusedResults.length,
       },
     };

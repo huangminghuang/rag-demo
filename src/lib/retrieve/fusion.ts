@@ -43,6 +43,13 @@ function getBranchWeight(source: RetrievalBranchSource): number {
   return 0.75;
 }
 
+function getBranchSourcePriority(source: RetrievalBranchSource): number {
+  if (source === "vector_original") return 0;
+  if (source === "lexical_original") return 1;
+  if (source === "vector_rewritten") return 2;
+  return 3;
+}
+
 function getOriginalFamilyMatchCount(sources: RetrievalBranchSource[]): number {
   return sources.filter(
     (source) => source === "vector_original" || source === "lexical_original",
@@ -98,7 +105,9 @@ export function fuseHybridRetrievalResults(params: {
       const shouldReplacePayload = result.similarity > existing.bestBranchSimilarity;
       const nextMatchedBy = existing.matchedBy.includes(branch.source)
         ? existing.matchedBy
-        : [...existing.matchedBy, branch.source];
+        : [...existing.matchedBy, branch.source].sort(
+            (left, right) => getBranchSourcePriority(left) - getBranchSourcePriority(right),
+          );
 
       merged.set(result.chunkId, {
         ...(shouldReplacePayload ? result : existing),

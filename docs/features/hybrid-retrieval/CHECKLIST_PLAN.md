@@ -37,12 +37,12 @@
 - [x] Add tests proving hybrid retrieval affects both retrieval entry points through the shared retrieval boundary.
 
 ## 5. Explicit Retrieve Debug Mode
-- [ ] Extend explicit debug mode on `POST /api/retrieve` with hybrid branch visibility.
-- [ ] Return debug metadata including active branch counts.
-- [ ] Return per-result branch provenance as a list of matched branches.
-- [ ] Keep the normal retrieve response shape unchanged when debug mode is not requested.
-- [ ] Do not expose hybrid debug payload from `POST /api/chat` in phase 1.
-- [ ] Add tests covering debug and non-debug response shapes.
+- [x] Extend explicit debug mode on `POST /api/retrieve` with hybrid branch visibility.
+- [x] Return debug metadata including active branch counts.
+- [x] Return per-result branch provenance as a list of matched branches.
+- [x] Keep the normal retrieve response shape unchanged when debug mode is not requested.
+- [x] Do not expose hybrid debug payload from `POST /api/chat` in phase 1.
+- [x] Add tests covering debug and non-debug response shapes.
 
 ## 6. Documentation and Verification
 - [ ] Document all `HYBRID_*` environment variables in `README.md`.
