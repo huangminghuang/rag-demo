@@ -7,14 +7,14 @@
 - [x] Add tests covering config defaults and validation.
 
 ## 2. PostgreSQL Lexical Search Foundation
-- [ ] Add database support for PostgreSQL trigram search.
-- [ ] Add a lexical search path using PostgreSQL full-text search on `chunks.content`.
-- [ ] Add trigram similarity support for identifier-heavy exact queries.
-- [ ] Combine FTS and trigram matching into one ranked lexical branch per query family.
-- [ ] Add indexing support for:
-- [ ] FTS on `chunks.content`
-- [ ] trigram similarity on `chunks.content`
-- [ ] Add tests covering lexical match behavior for natural-language and exact technical queries.
+- [x] Add database support for PostgreSQL trigram search.
+- [x] Add a lexical search path using PostgreSQL full-text search on `chunks.content`.
+- [x] Add trigram similarity support for identifier-heavy exact queries.
+- [x] Combine FTS and trigram matching into one ranked lexical branch per query family.
+- [x] Add indexing support for:
+- [x] FTS on `chunks.content`
+- [x] trigram similarity on `chunks.content`
+- [x] Add tests covering lexical match behavior for natural-language and exact technical queries.
 
 ## 3. Hybrid Fusion and Provenance
 - [ ] Generalize retrieval branch provenance to support:
