@@ -1,10 +1,10 @@
 # Hybrid Lexical + Vector Retrieval Checklist Plan
 
 ## 1. Config and Rollout Controls
-- [ ] Add hybrid retrieval config resolution for enablement, trigram threshold, pre-fusion limit, and debug-related behavior.
-- [ ] Add a master switch to enable or disable hybrid retrieval globally.
-- [ ] Keep hybrid retrieval disabled by default for rollout safety.
-- [ ] Add tests covering config defaults and validation.
+- [x] Add hybrid retrieval config resolution for enablement, trigram threshold, pre-fusion limit, and debug-related behavior.
+- [x] Add a master switch to enable or disable hybrid retrieval globally.
+- [x] Keep hybrid retrieval disabled by default for rollout safety.
+- [x] Add tests covering config defaults and validation.
 
 ## 2. PostgreSQL Lexical Search Foundation
 - [ ] Add database support for PostgreSQL trigram search.
