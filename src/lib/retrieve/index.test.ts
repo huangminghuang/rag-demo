@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { resolveHybridRetrievalConfig } from "./hybridRetrievalConfig";
 import { resolveQueryRewriteConfig } from "./queryRewriteConfig";
 
 vi.mock("@/lib/ingest/embeddings", () => ({
@@ -258,5 +259,195 @@ describe("retrieveRelevantChunks", () => {
         fusedCount: 2,
       },
     });
+  });
+
+  it("uses hybrid lexical and vector retrieval through the shared boundary when enabled", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-vector",
+          content: "Vector branch content",
+          url: "https://vite.dev/guide/features",
+          title: "Features",
+          anchor: null,
+          similarity: 0.82,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-rewritten-vector",
+          content: "Rewritten vector content",
+          url: "https://vite.dev/guide/dep-pre-bundling",
+          title: "Dependency Pre-Bundling",
+          anchor: null,
+          similarity: 0.84,
+        },
+      ]);
+    const searchLexically = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-lexical",
+          content: "Exact optimizeDeps identifier match",
+          url: "https://vite.dev/config/dep-optimization-options",
+          title: "Dep Optimization Options",
+          anchor: null,
+          similarity: 0.79,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-rewritten-vector",
+          content: "Rewritten vector content",
+          url: "https://vite.dev/guide/dep-pre-bundling",
+          title: "Dependency Pre-Bundling",
+          anchor: null,
+          similarity: 0.77,
+        },
+      ]);
+
+    const results = await retrieveRelevantChunks(
+      "How does Vite dependency pre-bundling work?",
+      { limit: 3, threshold: 0.6 },
+      {
+        searchByQuery,
+        searchLexically,
+        resolveHybridConfig: () =>
+          resolveHybridRetrievalConfig({
+            HYBRID_RETRIEVAL_ENABLED: "true",
+            HYBRID_PRE_FUSION_LIMIT: "12",
+          } as unknown as NodeJS.ProcessEnv),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as unknown as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: true,
+          originalQuery: "How does Vite dependency pre-bundling work?",
+          rewrittenQuery: "Vite dependency pre-bundling optimizeDeps esbuild dev server",
+          reason: "applied",
+        }),
+      },
+    );
+
+    expect(searchByQuery).toHaveBeenNthCalledWith(
+      1,
+      "How does Vite dependency pre-bundling work?",
+      {
+        limit: 12,
+        threshold: 0.6,
+      },
+    );
+    expect(searchLexically).toHaveBeenNthCalledWith(
+      1,
+      "How does Vite dependency pre-bundling work?",
+      {
+        limit: 12,
+        trigramThreshold: 0.18,
+      },
+    );
+    expect(searchByQuery).toHaveBeenNthCalledWith(
+      2,
+      "Vite dependency pre-bundling optimizeDeps esbuild dev server",
+      {
+        limit: 12,
+        threshold: 0.6,
+      },
+    );
+    expect(searchLexically).toHaveBeenNthCalledWith(
+      2,
+      "Vite dependency pre-bundling optimizeDeps esbuild dev server",
+      {
+        limit: 12,
+        trigramThreshold: 0.18,
+      },
+    );
+    expect(results).toEqual([
+      {
+        content: "Rewritten vector content",
+        url: "https://vite.dev/guide/dep-pre-bundling",
+        title: "Dependency Pre-Bundling",
+        anchor: null,
+        similarity: expect.any(Number),
+      },
+      {
+        content: "Vector branch content",
+        url: "https://vite.dev/guide/features",
+        title: "Features",
+        anchor: null,
+        similarity: expect.any(Number),
+      },
+      {
+        content: "Exact optimizeDeps identifier match",
+        url: "https://vite.dev/config/dep-optimization-options",
+        title: "Dep Optimization Options",
+        anchor: null,
+        similarity: expect.any(Number),
+      },
+    ]);
+  });
+
+  it("uses hybrid retrieval for exact queries even when rewrite is skipped", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi.fn().mockResolvedValue([
+      {
+        chunkId: "chunk-vector",
+        content: "General env guide",
+        url: "https://vite.dev/guide/env-and-mode",
+        title: "Env Variables and Modes",
+        anchor: null,
+        similarity: 0.81,
+      },
+    ]);
+    const searchLexically = vi.fn().mockResolvedValue([
+      {
+        chunkId: "chunk-lexical",
+        content: "Use import.meta.env to access exposed variables.",
+        url: "https://vite.dev/guide/env-and-mode",
+        title: "Env Variables and Modes",
+        anchor: "env-variables",
+        similarity: 0.92,
+      },
+    ]);
+
+    const results = await retrieveRelevantChunks(
+      "import.meta.env",
+      { limit: 2, threshold: 0.55 },
+      {
+        searchByQuery,
+        searchLexically,
+        resolveHybridConfig: () =>
+          resolveHybridRetrievalConfig({
+            HYBRID_RETRIEVAL_ENABLED: "true",
+          } as unknown as NodeJS.ProcessEnv),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as unknown as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: false,
+          originalQuery: "import.meta.env",
+          rewrittenQuery: null,
+          reason: "identifier_like",
+        }),
+      },
+    );
+
+    expect(searchByQuery).toHaveBeenCalledTimes(1);
+    expect(searchLexically).toHaveBeenCalledTimes(1);
+    expect(results).toEqual([
+      {
+        content: "Use import.meta.env to access exposed variables.",
+        url: "https://vite.dev/guide/env-and-mode",
+        title: "Env Variables and Modes",
+        anchor: "env-variables",
+        similarity: expect.any(Number),
+      },
+      {
+        content: "General env guide",
+        url: "https://vite.dev/guide/env-and-mode",
+        title: "Env Variables and Modes",
+        anchor: null,
+        similarity: expect.any(Number),
+      },
+    ]);
   });
 });

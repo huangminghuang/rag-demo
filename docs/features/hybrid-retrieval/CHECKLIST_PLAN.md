@@ -29,12 +29,12 @@
 - [x] Add tests for weighted RRF behavior, provenance aggregation, deduping, and deterministic ordering.
 
 ## 4. Shared Retrieval Integration
-- [ ] Integrate hybrid retrieval into `retrieveRelevantChunks(...)`.
-- [ ] Ensure both `POST /api/retrieve` and `POST /api/chat` use the same hybrid-enabled retrieval path.
-- [ ] Preserve vector-only behavior when hybrid retrieval is disabled.
-- [ ] Ensure query rewrite and hybrid retrieval compose correctly.
-- [ ] Keep chat response shape unchanged.
-- [ ] Add tests proving hybrid retrieval affects both retrieval entry points through the shared retrieval boundary.
+- [x] Integrate hybrid retrieval into `retrieveRelevantChunks(...)`.
+- [x] Ensure both `POST /api/retrieve` and `POST /api/chat` use the same hybrid-enabled retrieval path.
+- [x] Preserve vector-only behavior when hybrid retrieval is disabled.
+- [x] Ensure query rewrite and hybrid retrieval compose correctly.
+- [x] Keep chat response shape unchanged.
+- [x] Add tests proving hybrid retrieval affects both retrieval entry points through the shared retrieval boundary.
 
 ## 5. Explicit Retrieve Debug Mode
 - [ ] Extend explicit debug mode on `POST /api/retrieve` with hybrid branch visibility.

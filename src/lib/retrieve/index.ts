@@ -3,10 +3,17 @@ import { chunks, documents } from "@/lib/db/schema";
 import { generateEmbedding } from "@/lib/ingest/embeddings";
 import { sql, eq, gt } from "drizzle-orm";
 import {
+  fuseHybridRetrievalResults,
   fuseRetrievalResults,
+  type RetrievalBranchSource,
   type RetrievalBranchResult,
   type RetrievalMatchSource,
 } from "./fusion";
+import {
+  resolveHybridRetrievalConfig,
+  type HybridRetrievalConfig,
+} from "./hybridRetrievalConfig";
+import { searchChunksLexically } from "./lexicalSearch";
 import { resolveQueryRewriteConfig, type QueryRewriteConfig } from "./queryRewriteConfig";
 import {
   rewriteQueryForRetrieval,
@@ -48,6 +55,11 @@ interface RetrieveRelevantChunksDependencies {
     query: string,
     options: { limit: number; threshold: number },
   ) => Promise<StoredRetrievalResult[]>;
+  searchLexically?: (
+    query: string,
+    options: { limit: number; trigramThreshold: number },
+  ) => Promise<StoredRetrievalResult[]>;
+  resolveHybridConfig?: () => HybridRetrievalConfig;
   resolveRewriteConfig?: () => QueryRewriteConfig;
   rewriteQuery?: (
     query: string,
@@ -73,6 +85,22 @@ function toPublicResult(result: StoredRetrievalResult): RetrievalResult {
   };
 }
 
+// Collapse branch-level hybrid provenance back into the current debug surface until hybrid debug expands in phase 1.
+function toLegacyMatchSource(matchedBy: RetrievalBranchSource[]): RetrievalMatchSource {
+  const hasOriginal = matchedBy.some(
+    (source) => source === "vector_original" || source === "lexical_original",
+  );
+  const hasRewritten = matchedBy.some(
+    (source) => source === "vector_rewritten" || source === "lexical_rewritten",
+  );
+
+  if (hasOriginal && hasRewritten) {
+    return "both";
+  }
+
+  return hasOriginal ? "original" : "rewritten";
+}
+
 function toDebugChunk(
   result: StoredRetrievalResult,
   matchedBy: RetrievalMatchSource,
@@ -86,6 +114,11 @@ function toDebugChunk(
 // Derive the per-branch fetch size used before fusion so each branch can contribute unique hits.
 function getPreFusionFetchLimit(limit: number): number {
   return Math.max(limit, MIN_FUSION_BRANCH_LIMIT);
+}
+
+// Over-fetch more aggressively in hybrid mode so vector and lexical branches can both contribute candidates.
+function getHybridPreFusionFetchLimit(limit: number, preFusionLimit: number): number {
+  return Math.max(limit * 3, preFusionLimit);
 }
 
 // Run one vector search against stored chunk embeddings and keep stable chunk identity for fusion.
@@ -144,13 +177,19 @@ export async function retrieveRelevantChunks(
       searchChunksByQuery(searchQuery, searchOptions, {
         generateQueryEmbedding: dependencies.generateQueryEmbedding,
       }));
+  const searchLexically =
+    dependencies.searchLexically ??
+    ((searchQuery, searchOptions) => searchChunksLexically(searchQuery, searchOptions));
+  const resolveHybridConfig =
+    dependencies.resolveHybridConfig ?? (() => resolveHybridRetrievalConfig());
   const resolveRewriteConfig =
     dependencies.resolveRewriteConfig ?? (() => resolveQueryRewriteConfig());
+  const hybridConfig = resolveHybridConfig();
   const rewriteQuery = dependencies.rewriteQuery ?? rewriteQueryForRetrieval;
   const rewriteConfig = resolveRewriteConfig();
   const rewriteDecision = await rewriteQuery(query, rewriteConfig);
 
-  if (!rewriteDecision.applied) {
+  if (!hybridConfig.enabled && !rewriteDecision.applied) {
     const originalOnlyResults = await searchByQuery(query, { limit, threshold });
     if (debug) {
       return {
@@ -170,32 +209,92 @@ export async function retrieveRelevantChunks(
     return originalOnlyResults.map(toPublicResult);
   }
 
-  const preFusionFetchLimit = getPreFusionFetchLimit(limit);
-  const [originalResults, rewrittenResults] = await Promise.all([
-    searchByQuery(rewriteDecision.originalQuery, { limit: preFusionFetchLimit, threshold }),
-    searchByQuery(rewriteDecision.rewrittenQuery, { limit: preFusionFetchLimit, threshold }),
-  ]);
+  if (!hybridConfig.enabled) {
+    const preFusionFetchLimit = getPreFusionFetchLimit(limit);
+    const [originalResults, rewrittenResults] = await Promise.all([
+      searchByQuery(rewriteDecision.originalQuery, { limit: preFusionFetchLimit, threshold }),
+      searchByQuery(rewriteDecision.rewrittenQuery, { limit: preFusionFetchLimit, threshold }),
+    ]);
 
-  const fusedResults = fuseRetrievalResults({
-    originalResults,
-    rewrittenResults,
+    const fusedResults = fuseRetrievalResults({
+      originalResults,
+      rewrittenResults,
+      limit,
+    });
+
+    if (debug) {
+      return {
+        chunks: fusedResults.map((result) => toDebugChunk(result, result.matchedBy)),
+        debug: {
+          originalQuery: rewriteDecision.originalQuery,
+          rewrittenQuery: rewriteDecision.rewrittenQuery,
+          rewriteApplied: true,
+          rewriteReason: rewriteDecision.reason,
+          originalBranchCount: originalResults.length,
+          rewrittenBranchCount: rewrittenResults.length,
+          fusedCount: fusedResults.length,
+        },
+      };
+    }
+
+    return fusedResults.map(toPublicResult);
+  }
+
+  const preFusionFetchLimit = getHybridPreFusionFetchLimit(limit, hybridConfig.preFusionLimit);
+  const originalVectorPromise = searchByQuery(rewriteDecision.originalQuery, {
+    limit: preFusionFetchLimit,
+    threshold,
+  });
+  const originalLexicalPromise = searchLexically(rewriteDecision.originalQuery, {
+    limit: preFusionFetchLimit,
+    trigramThreshold: hybridConfig.trigramThreshold,
+  });
+
+  const [originalVectorResults, originalLexicalResults, rewrittenVectorResults, rewrittenLexicalResults] =
+    rewriteDecision.applied
+      ? await Promise.all([
+          originalVectorPromise,
+          originalLexicalPromise,
+          searchByQuery(rewriteDecision.rewrittenQuery, {
+            limit: preFusionFetchLimit,
+            threshold,
+          }),
+          searchLexically(rewriteDecision.rewrittenQuery, {
+            limit: preFusionFetchLimit,
+            trigramThreshold: hybridConfig.trigramThreshold,
+          }),
+        ])
+      : await Promise.all([
+          originalVectorPromise,
+          originalLexicalPromise,
+          Promise.resolve([] as StoredRetrievalResult[]),
+          Promise.resolve([] as StoredRetrievalResult[]),
+        ]);
+
+  const hybridFusedResults = fuseHybridRetrievalResults({
+    branches: [
+      { source: "vector_original", results: originalVectorResults },
+      { source: "lexical_original", results: originalLexicalResults },
+      { source: "vector_rewritten", results: rewrittenVectorResults },
+      { source: "lexical_rewritten", results: rewrittenLexicalResults },
+    ],
     limit,
   });
 
   if (debug) {
     return {
-      chunks: fusedResults.map((result) => toDebugChunk(result, result.matchedBy)),
+      chunks: hybridFusedResults.map((result) => toDebugChunk(result, toLegacyMatchSource(result.matchedBy))),
       debug: {
         originalQuery: rewriteDecision.originalQuery,
         rewrittenQuery: rewriteDecision.rewrittenQuery,
-        rewriteApplied: true,
+        rewriteApplied: rewriteDecision.applied,
         rewriteReason: rewriteDecision.reason,
-        originalBranchCount: originalResults.length,
-        rewrittenBranchCount: rewrittenResults.length,
-        fusedCount: fusedResults.length,
+        originalBranchCount: originalVectorResults.length + originalLexicalResults.length,
+        rewrittenBranchCount: rewrittenVectorResults.length + rewrittenLexicalResults.length,
+        fusedCount: hybridFusedResults.length,
       },
     };
   }
 
-  return fusedResults.map(toPublicResult);
+  return hybridFusedResults.map(toPublicResult);
 }
