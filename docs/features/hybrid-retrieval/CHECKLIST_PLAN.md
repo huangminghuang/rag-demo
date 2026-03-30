@@ -17,16 +17,16 @@
 - [x] Add tests covering lexical match behavior for natural-language and exact technical queries.
 
 ## 3. Hybrid Fusion and Provenance
-- [ ] Generalize retrieval branch provenance to support:
-- [ ] `vector_original`
-- [ ] `lexical_original`
-- [ ] `vector_rewritten`
-- [ ] `lexical_rewritten`
-- [ ] Replace current fusion with weighted reciprocal rank fusion across active branches.
-- [ ] Keep original-query branches weighted above rewritten-query branches.
-- [ ] Dedupe by stable chunk identity.
-- [ ] Aggregate per-result matched branches.
-- [ ] Add tests for weighted RRF behavior, provenance aggregation, deduping, and deterministic ordering.
+- [x] Generalize retrieval branch provenance to support:
+- [x] `vector_original`
+- [x] `lexical_original`
+- [x] `vector_rewritten`
+- [x] `lexical_rewritten`
+- [x] Replace current fusion with weighted reciprocal rank fusion across active branches.
+- [x] Keep original-query branches weighted above rewritten-query branches.
+- [x] Dedupe by stable chunk identity.
+- [x] Aggregate per-result matched branches.
+- [x] Add tests for weighted RRF behavior, provenance aggregation, deduping, and deterministic ordering.
 
 ## 4. Shared Retrieval Integration
 - [ ] Integrate hybrid retrieval into `retrieveRelevantChunks(...)`.
