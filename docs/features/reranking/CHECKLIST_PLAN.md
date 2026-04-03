@@ -34,17 +34,17 @@
 - [x] Add tests proving reranking affects both retrieval entry points through the shared retrieval boundary.
 
 ## 5. Ranking Policy and Query Behavior
-- [ ] Instruct the reranker to optimize for answer usefulness to the user’s question.
-- [ ] Explicitly preserve exact technical matches when they are directly relevant.
-- [ ] Allow URL and anchor text to contribute as docs-specific ranking evidence.
-- [ ] Encourage diversity when near-duplicate candidates would otherwise occupy multiple top slots.
-- [ ] Add tests covering:
-- [ ] exact identifiers
-- [ ] file names
-- [ ] config paths
-- [ ] CLI commands
-- [ ] conversational questions
-- [ ] near-duplicate candidate sets
+- [x] Instruct the reranker to optimize for answer usefulness to the user’s question.
+- [x] Explicitly preserve exact technical matches when they are directly relevant.
+- [x] Allow URL and anchor text to contribute as docs-specific ranking evidence.
+- [x] Encourage diversity when near-duplicate candidates would otherwise occupy multiple top slots.
+- [x] Add tests covering:
+- [x] exact identifiers
+- [x] file names
+- [x] config paths
+- [x] CLI commands
+- [x] conversational questions
+- [x] near-duplicate candidate sets
 
 ## 6. Route-Specific Consumption Details
 - [ ] Keep direct retrieval single-query while allowing chat reranking to consume the same retained conversation history already prepared for answer generation.
