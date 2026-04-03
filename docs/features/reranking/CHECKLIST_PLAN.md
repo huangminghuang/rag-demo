@@ -1,10 +1,10 @@
 # LLM Reranking on Fused Top-N Checklist Plan
 
 ## 1. Config and Rollout Controls
-- [ ] Add reranking config resolution for enablement, candidate count, timeout budget, and debug-related behavior.
-- [ ] Add a master switch to enable or disable reranking globally.
-- [ ] Keep reranking disabled by default for rollout safety.
-- [ ] Add tests covering config defaults and validation.
+- [x] Add reranking config resolution for enablement, candidate count, timeout budget, and debug-related behavior.
+- [x] Add a master switch to enable or disable reranking globally.
+- [x] Keep reranking disabled by default for rollout safety.
+- [x] Add tests covering config defaults and validation.
 
 ## 2. Deep Reranker Module
 - [ ] Add a dedicated reranker module that encapsulates prompt construction, provider invocation, output parsing, validation, and fail-open behavior.
