@@ -7,16 +7,16 @@
 - [x] Add tests covering config defaults and validation.
 
 ## 2. Deep Reranker Module
-- [ ] Add a dedicated reranker module that encapsulates prompt construction, provider invocation, output parsing, validation, and fail-open behavior.
-- [ ] Define a pluggable reranker interface so retrieval orchestration stays provider-agnostic.
-- [ ] Add a Gemini-backed phase-1 reranker implementation behind that interface.
-- [ ] Pass reranker inputs including:
-- [ ] original query
-- [ ] rewritten query when rewrite applies
-- [ ] candidate title, URL, anchor, truncated content, and matched-branch provenance
-- [ ] Require structured ordered candidate IDs as the executable reranker output.
-- [ ] Treat optional scores and short reasons as diagnostics only.
-- [ ] Add tests covering valid reorder behavior, skip behavior, and deterministic fallback behavior.
+- [x] Add a dedicated reranker module that encapsulates prompt construction, provider invocation, output parsing, validation, and fail-open behavior.
+- [x] Define a pluggable reranker interface so retrieval orchestration stays provider-agnostic.
+- [x] Add a Gemini-backed phase-1 reranker implementation behind that interface.
+- [x] Pass reranker inputs including:
+- [x] original query
+- [x] rewritten query when rewrite applies
+- [x] candidate title, URL, anchor, truncated content, and matched-branch provenance
+- [x] Require structured ordered candidate IDs as the executable reranker output.
+- [x] Treat optional scores and short reasons as diagnostics only.
+- [x] Add tests covering valid reorder behavior, skip behavior, and deterministic fallback behavior.
 
 ## 3. Validation and Failure Handling
 - [ ] Strictly reject invalid reranker permutations with missing, duplicate, or unknown IDs.
