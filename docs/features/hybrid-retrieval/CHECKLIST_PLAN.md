@@ -57,10 +57,10 @@
 - [x] hybrid disabled fallback behavior
 
 ## 7. Verification and Acceptance
-- [ ] Confirm exact identifier-style queries improve or remain stable under hybrid retrieval.
-- [ ] Confirm file names, config paths, and commands benefit from lexical matching.
-- [ ] Confirm conversational questions still benefit from vector retrieval under hybrid mode.
-- [ ] Confirm query rewrite and hybrid retrieval work together without degrading exact lookups.
-- [ ] Confirm branch counts and matched-branch provenance are visible in retrieve debug mode.
-- [ ] Confirm chat uses the same hybrid retrieval pipeline without exposing debug internals.
-- [ ] Confirm the public retrieval API remains stable unless debug mode is explicitly requested.
+- [x] Confirm exact identifier-style queries improve or remain stable under hybrid retrieval.
+- [x] Confirm file names, config paths, and commands benefit from lexical matching.
+- [x] Confirm conversational questions still benefit from vector retrieval under hybrid mode.
+- [x] Confirm query rewrite and hybrid retrieval work together without degrading exact lookups.
+- [x] Confirm branch counts and matched-branch provenance are visible in retrieve debug mode.
+- [x] Confirm chat uses the same hybrid retrieval pipeline without exposing debug internals.
+- [x] Confirm the public retrieval API remains stable unless debug mode is explicitly requested.

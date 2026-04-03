@@ -6,6 +6,7 @@ Version: `v1`
 
 ## Usage Notes
 
+- Run `npm run test:hybrid-retrieval` to execute the automated hybrid-retrieval suite.
 - Enable hybrid retrieval with `HYBRID_RETRIEVAL_ENABLED=true` before running these checks.
 - Use `POST /api/retrieve` with `debug: true` so you can inspect:
   - `branchCounts`
@@ -14,6 +15,8 @@ Version: `v1`
   - per-result `matchedBy`
 - Compare hybrid retrieval disabled vs enabled for the same query when verifying improvements.
 - Keep the wording unchanged during evaluation.
+
+The automated suite covers lexical/vector branch behavior, shared-boundary integration, retrieve debug visibility, and route-level API stability. The matrix below remains useful for qualitative inspection against a running dataset.
 
 ## Test Matrix
 

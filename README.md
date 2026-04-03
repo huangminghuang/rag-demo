@@ -246,6 +246,8 @@ Local references:
 
 Hybrid retrieval is an optional lexical + vector retrieval layer that runs inside `retrieveRelevantChunks(...)`. It composes with query rewrite and affects both `POST /api/retrieve` and `POST /api/chat`, but expanded hybrid diagnostics are only exposed through `POST /api/retrieve` when you explicitly request debug mode.
 
+Run `npm run test:hybrid-retrieval` to execute the focused automated hybrid-retrieval acceptance suite.
+
 Set these environment variables to control hybrid retrieval:
 
 - `HYBRID_RETRIEVAL_ENABLED` (default: `false`)
