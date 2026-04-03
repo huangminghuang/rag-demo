@@ -66,21 +66,36 @@ const rerankerResponseSchema = z.object({
     .optional(),
 });
 
+class RerankerTimeoutError extends Error {
+  constructor() {
+    super("Reranker timed out");
+    this.name = "RerankerTimeoutError";
+  }
+}
+
+class RerankerInvalidOutputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RerankerInvalidOutputError";
+  }
+}
+
 function createPassThroughResult(params: {
   request: RerankingRequest;
   candidates: RerankingCandidate[];
   status: Exclude<RerankingStatus, "applied">;
 }): RerankingResult {
   const finalCandidates = params.candidates.slice(0, params.request.limit);
-  const finalIds = finalCandidates.map((candidate) => candidate.chunkId);
+  const beforeIds = params.candidates.map((candidate) => candidate.chunkId);
+  const afterIds = finalCandidates.map((candidate) => candidate.chunkId);
 
   return {
     applied: false,
     status: params.status,
     inputCount: params.candidates.length,
     outputCount: finalCandidates.length,
-    beforeIds: finalIds,
-    afterIds: finalIds,
+    beforeIds,
+    afterIds,
     diagnostics: [],
     candidates: finalCandidates,
   };
@@ -155,15 +170,30 @@ function extractJsonObject(rawResponse: string): string {
   const firstBrace = rawResponse.indexOf("{");
   const lastBrace = rawResponse.lastIndexOf("}");
   if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-    throw new Error("Reranker response did not contain a JSON object");
+    throw new RerankerInvalidOutputError("Reranker response did not contain a JSON object");
   }
 
   return rawResponse.slice(firstBrace, lastBrace + 1);
 }
 
 function parseRerankerResponse(rawResponse: string): z.infer<typeof rerankerResponseSchema> {
-  const parsed = JSON.parse(extractJsonObject(rawResponse));
-  return rerankerResponseSchema.parse(parsed);
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(extractJsonObject(rawResponse));
+  } catch (error) {
+    if (error instanceof RerankerInvalidOutputError) {
+      throw error;
+    }
+
+    throw new RerankerInvalidOutputError("Reranker response did not contain valid JSON");
+  }
+
+  try {
+    return rerankerResponseSchema.parse(parsed);
+  } catch {
+    throw new RerankerInvalidOutputError("Reranker response did not match the expected schema");
+  }
 }
 
 function hasExactCandidatePermutation(
@@ -212,7 +242,7 @@ function toDiagnostics(
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timeoutHandle = setTimeout(() => reject(new Error("Reranker timed out")), timeoutMs);
+    const timeoutHandle = setTimeout(() => reject(new RerankerTimeoutError()), timeoutMs);
 
     promise
       .then((value) => {
@@ -294,13 +324,7 @@ export async function rerankCandidates(
     const parsed = parseRerankerResponse(rawResponse);
 
     if (!hasExactCandidatePermutation(parsed.rankedIds, beforeIds)) {
-      const result = createPassThroughResult({
-        request,
-        candidates: boundedCandidates,
-        status: "fallback_invalid_output",
-      });
-      logRerankingDecision(config, result);
-      return result;
+      throw new RerankerInvalidOutputError("Reranker returned an invalid candidate permutation");
     }
 
     const candidatesById = new Map(
@@ -330,9 +354,11 @@ export async function rerankCandidates(
       request,
       candidates: boundedCandidates,
       status:
-        error instanceof Error && error.message === "Reranker timed out"
+        error instanceof RerankerTimeoutError
           ? "fallback_timeout"
-          : "fallback_model_failed",
+          : error instanceof RerankerInvalidOutputError
+            ? "fallback_invalid_output"
+            : "fallback_model_failed",
     });
     logRerankingDecision(config, result);
     return result;

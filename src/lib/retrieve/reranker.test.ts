@@ -150,7 +150,109 @@ describe("rerankCandidates", () => {
       status: "fallback_invalid_output",
       inputCount: 3,
       outputCount: 2,
-      beforeIds: ["chunk-1", "chunk-2"],
+      beforeIds: ["chunk-1", "chunk-2", "chunk-3"],
+      afterIds: ["chunk-1", "chunk-2"],
+      diagnostics: [],
+      candidates: [
+        makeCandidate("chunk-1"),
+        makeCandidate("chunk-2"),
+      ],
+    });
+  });
+
+  it("falls back deterministically when the model output is malformed JSON", async () => {
+    const result = await rerankCandidates(
+      {
+        originalQuery: "server.proxy",
+        rewrittenQuery: null,
+        candidates: [
+          makeCandidate("chunk-1"),
+          makeCandidate("chunk-2"),
+          makeCandidate("chunk-3"),
+        ],
+        limit: 2,
+      },
+      rerankingConfig({ RERANKING_CANDIDATE_COUNT: "3" }),
+      {
+        rerankModel: vi.fn().mockResolvedValue("not-json-at-all"),
+      },
+    );
+
+    expect(result).toEqual({
+      applied: false,
+      status: "fallback_invalid_output",
+      inputCount: 3,
+      outputCount: 2,
+      beforeIds: ["chunk-1", "chunk-2", "chunk-3"],
+      afterIds: ["chunk-1", "chunk-2"],
+      diagnostics: [],
+      candidates: [
+        makeCandidate("chunk-1"),
+        makeCandidate("chunk-2"),
+      ],
+    });
+  });
+
+  it("falls back deterministically when the model call fails", async () => {
+    const result = await rerankCandidates(
+      {
+        originalQuery: "vite preview",
+        rewrittenQuery: null,
+        candidates: [
+          makeCandidate("chunk-1"),
+          makeCandidate("chunk-2"),
+          makeCandidate("chunk-3"),
+        ],
+        limit: 2,
+      },
+      rerankingConfig({ RERANKING_CANDIDATE_COUNT: "3" }),
+      {
+        rerankModel: vi.fn().mockRejectedValue(new Error("upstream unavailable")),
+      },
+    );
+
+    expect(result).toEqual({
+      applied: false,
+      status: "fallback_model_failed",
+      inputCount: 3,
+      outputCount: 2,
+      beforeIds: ["chunk-1", "chunk-2", "chunk-3"],
+      afterIds: ["chunk-1", "chunk-2"],
+      diagnostics: [],
+      candidates: [
+        makeCandidate("chunk-1"),
+        makeCandidate("chunk-2"),
+      ],
+    });
+  });
+
+  it("falls back deterministically when reranking times out", async () => {
+    const result = await rerankCandidates(
+      {
+        originalQuery: "optimizeDeps",
+        rewrittenQuery: null,
+        candidates: [
+          makeCandidate("chunk-1"),
+          makeCandidate("chunk-2"),
+          makeCandidate("chunk-3"),
+        ],
+        limit: 2,
+      },
+      rerankingConfig({
+        RERANKING_CANDIDATE_COUNT: "3",
+        RERANKING_TIMEOUT_MS: "5",
+      }),
+      {
+        rerankModel: () => new Promise<string>((resolve) => setTimeout(() => resolve("{}"), 25)),
+      },
+    );
+
+    expect(result).toEqual({
+      applied: false,
+      status: "fallback_timeout",
+      inputCount: 3,
+      outputCount: 2,
+      beforeIds: ["chunk-1", "chunk-2", "chunk-3"],
       afterIds: ["chunk-1", "chunk-2"],
       diagnostics: [],
       candidates: [

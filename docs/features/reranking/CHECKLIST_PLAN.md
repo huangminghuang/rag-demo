@@ -19,11 +19,11 @@
 - [x] Add tests covering valid reorder behavior, skip behavior, and deterministic fallback behavior.
 
 ## 3. Validation and Failure Handling
-- [ ] Strictly reject invalid reranker permutations with missing, duplicate, or unknown IDs.
-- [ ] Fail open to the fused order when reranking times out, errors, or returns malformed structured output.
-- [ ] Preserve fused order as the stable tiebreak and fallback baseline.
-- [ ] Keep reranking single-shot in phase 1 with no retry policy.
-- [ ] Add tests covering timeout, model failure, malformed output, and invalid permutation fallback cases.
+- [x] Strictly reject invalid reranker permutations with missing, duplicate, or unknown IDs.
+- [x] Fail open to the fused order when reranking times out, errors, or returns malformed structured output.
+- [x] Preserve fused order as the stable tiebreak and fallback baseline.
+- [x] Keep reranking single-shot in phase 1 with no retry policy.
+- [x] Add tests covering timeout, model failure, malformed output, and invalid permutation fallback cases.
 
 ## 4. Shared Retrieval Integration
 - [ ] Integrate reranking into `retrieveRelevantChunks(...)` after fusion and before final result consumption.
