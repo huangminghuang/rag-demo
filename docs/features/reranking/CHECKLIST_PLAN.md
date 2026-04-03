@@ -26,12 +26,12 @@
 - [x] Add tests covering timeout, model failure, malformed output, and invalid permutation fallback cases.
 
 ## 4. Shared Retrieval Integration
-- [ ] Integrate reranking into `retrieveRelevantChunks(...)` after fusion and before final result consumption.
-- [ ] Rerank a fused top-N candidate set where N is greater than the final returned limit.
-- [ ] Skip reranking when the fused candidate set is already less than or equal to the final limit.
-- [ ] Ensure both `POST /api/retrieve` and `POST /api/chat` use the same reranked retrieval boundary.
-- [ ] Keep normal retrieve and chat response shapes unchanged.
-- [ ] Add tests proving reranking affects both retrieval entry points through the shared retrieval boundary.
+- [x] Integrate reranking into `retrieveRelevantChunks(...)` after fusion and before final result consumption.
+- [x] Rerank a fused top-N candidate set where N is greater than the final returned limit.
+- [x] Skip reranking when the fused candidate set is already less than or equal to the final limit.
+- [x] Ensure both `POST /api/retrieve` and `POST /api/chat` use the same reranked retrieval boundary.
+- [x] Keep normal retrieve and chat response shapes unchanged.
+- [x] Add tests proving reranking affects both retrieval entry points through the shared retrieval boundary.
 
 ## 5. Ranking Policy and Query Behavior
 - [ ] Instruct the reranker to optimize for answer usefulness to the user’s question.

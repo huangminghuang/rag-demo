@@ -7,12 +7,21 @@ import {
   fuseRetrievalResults,
   type RetrievalBranchSource,
   type RetrievalBranchResult,
+  type FusedRetrievalResult,
   type RetrievalMatchSource,
 } from "./fusion";
 import {
   resolveHybridRetrievalConfig,
   type HybridRetrievalConfig,
 } from "./hybridRetrievalConfig";
+import {
+  rerankCandidates,
+  type RerankingResult,
+} from "./reranker";
+import {
+  resolveRerankingConfig,
+  type RerankingConfig,
+} from "./rerankingConfig";
 import { searchChunksLexically } from "./lexicalSearch";
 import { resolveQueryRewriteConfig, type QueryRewriteConfig } from "./queryRewriteConfig";
 import {
@@ -68,11 +77,21 @@ interface RetrieveRelevantChunksDependencies {
     options: { limit: number; trigramThreshold: number },
   ) => Promise<StoredRetrievalResult[]>;
   resolveHybridConfig?: () => HybridRetrievalConfig;
+  resolveRerankingConfig?: () => RerankingConfig;
   resolveRewriteConfig?: () => QueryRewriteConfig;
   rewriteQuery?: (
     query: string,
     config: QueryRewriteConfig,
   ) => Promise<QueryRewriteDecision>;
+  rerankRetrievedCandidates?: (
+    request: {
+      originalQuery: string;
+      rewrittenQuery: string | null;
+      candidates: RetrievalDebugChunk[];
+      limit: number;
+    },
+    config: RerankingConfig,
+  ) => Promise<RerankingResult>;
 }
 
 interface RetrieveRelevantChunksOptions {
@@ -82,6 +101,7 @@ interface RetrieveRelevantChunksOptions {
 }
 
 const MIN_FUSION_BRANCH_LIMIT = 8;
+type InternalRerankingCandidate = RetrievalDebugChunk & { chunkId: string };
 
 function toPublicResult(result: StoredRetrievalResult): RetrievalResult {
   return {
@@ -109,6 +129,38 @@ function toLegacyDebugMatchedBy(matchedBy: RetrievalMatchSource): RetrievalBranc
   }
 
   return matchedBy === "original" ? ["vector_original"] : ["vector_rewritten"];
+}
+
+function toDebugChunksFromLegacyResults(results: FusedRetrievalResult[]): RetrievalDebugChunk[] {
+  return results.map((result) => toDebugChunk(result, toLegacyDebugMatchedBy(result.matchedBy)));
+}
+
+async function applyReranking(params: {
+  query: string;
+  rewrittenQuery: string | null;
+  limit: number;
+  candidates: InternalRerankingCandidate[];
+  config: RerankingConfig;
+  rerankRetrievedCandidates: NonNullable<RetrieveRelevantChunksDependencies["rerankRetrievedCandidates"]>;
+}): Promise<RetrievalDebugChunk[]> {
+  const rerankingResult = await params.rerankRetrievedCandidates(
+    {
+      originalQuery: params.query,
+      rewrittenQuery: params.rewrittenQuery,
+      candidates: params.candidates,
+      limit: params.limit,
+    },
+    params.config,
+  );
+
+  return rerankingResult.candidates.map((candidate) => ({
+    content: candidate.content,
+    url: candidate.url,
+    title: candidate.title,
+    anchor: candidate.anchor,
+    similarity: candidate.similarity,
+    matchedBy: [...candidate.matchedBy],
+  }));
 }
 
 function createBranchCounts(overrides: Partial<RetrievalDebugBranchCounts>): RetrievalDebugBranchCounts {
@@ -192,10 +244,14 @@ export async function retrieveRelevantChunks(
     ((searchQuery, searchOptions) => searchChunksLexically(searchQuery, searchOptions));
   const resolveHybridConfig =
     dependencies.resolveHybridConfig ?? (() => resolveHybridRetrievalConfig());
+  const resolveRerankingConfigFromEnv =
+    dependencies.resolveRerankingConfig ?? (() => resolveRerankingConfig());
   const resolveRewriteConfig =
     dependencies.resolveRewriteConfig ?? (() => resolveQueryRewriteConfig());
   const hybridConfig = resolveHybridConfig();
+  const rerankingConfig = resolveRerankingConfigFromEnv();
   const rewriteQuery = dependencies.rewriteQuery ?? rewriteQueryForRetrieval;
+  const rerankRetrievedCandidates = dependencies.rerankRetrievedCandidates ?? rerankCandidates;
   const rewriteConfig = resolveRewriteConfig();
   const rewriteDecision = await rewriteQuery(query, rewriteConfig);
 
@@ -235,11 +291,21 @@ export async function retrieveRelevantChunks(
       limit,
     });
 
+    const rerankedChunks = await applyReranking({
+      query: rewriteDecision.originalQuery,
+      rewrittenQuery: rewriteDecision.rewrittenQuery,
+      limit,
+      candidates: fusedResults.map((result) => ({
+        chunkId: result.chunkId,
+        ...toDebugChunk(result, toLegacyDebugMatchedBy(result.matchedBy)),
+      })),
+      config: rerankingConfig,
+      rerankRetrievedCandidates,
+    });
+
     if (debug) {
       return {
-        chunks: fusedResults.map((result) =>
-          toDebugChunk(result, toLegacyDebugMatchedBy(result.matchedBy)),
-        ),
+        chunks: rerankedChunks,
         debug: {
           originalQuery: rewriteDecision.originalQuery,
           rewrittenQuery: rewriteDecision.rewrittenQuery,
@@ -256,7 +322,7 @@ export async function retrieveRelevantChunks(
       };
     }
 
-    return fusedResults.map(toPublicResult);
+    return rerankedChunks.map(toPublicResult);
   }
 
   const preFusionFetchLimit = getHybridPreFusionFetchLimit(limit, hybridConfig.preFusionLimit);
@@ -300,9 +366,21 @@ export async function retrieveRelevantChunks(
     limit,
   });
 
+  const rerankedHybridChunks = await applyReranking({
+    query: rewriteDecision.originalQuery,
+    rewrittenQuery: rewriteDecision.rewrittenQuery,
+    limit,
+    candidates: hybridFusedResults.map((result) => ({
+      chunkId: result.chunkId,
+      ...toDebugChunk(result, result.matchedBy),
+    })),
+    config: rerankingConfig,
+    rerankRetrievedCandidates,
+  });
+
   if (debug) {
     return {
-      chunks: hybridFusedResults.map((result) => toDebugChunk(result, result.matchedBy)),
+      chunks: rerankedHybridChunks,
       debug: {
         originalQuery: rewriteDecision.originalQuery,
         rewrittenQuery: rewriteDecision.rewrittenQuery,
@@ -321,5 +399,5 @@ export async function retrieveRelevantChunks(
     };
   }
 
-  return hybridFusedResults.map(toPublicResult);
+  return rerankedHybridChunks.map(toPublicResult);
 }
