@@ -47,10 +47,10 @@
 - [x] near-duplicate candidate sets
 
 ## 6. Route-Specific Consumption Details
-- [ ] Keep direct retrieval single-query while allowing chat reranking to consume the same retained conversation history already prepared for answer generation.
-- [ ] Ensure chat source numbering reflects the final reranked order.
-- [ ] Ensure citation mapping remains aligned with the final reranked source order.
-- [ ] Add tests covering chat source ordering and citation stability after reranking.
+- [x] Keep direct retrieval single-query while allowing chat reranking to consume the same retained conversation history already prepared for answer generation.
+- [x] Ensure chat source numbering reflects the final reranked order.
+- [x] Ensure citation mapping remains aligned with the final reranked source order.
+- [x] Add tests covering chat source ordering and citation stability after reranking.
 
 ## 7. Explicit Retrieve Debug Mode
 - [ ] Extend explicit debug mode on `POST /api/retrieve` with reranking visibility.

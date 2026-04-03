@@ -87,7 +87,8 @@ interface RetrieveRelevantChunksDependencies {
     request: {
       originalQuery: string;
       rewrittenQuery: string | null;
-      candidates: RetrievalDebugChunk[];
+      history?: string[];
+      candidates: InternalRerankingCandidate[];
       limit: number;
     },
     config: RerankingConfig,
@@ -98,6 +99,7 @@ interface RetrieveRelevantChunksOptions {
   limit?: number;
   threshold?: number;
   debug?: boolean;
+  history?: string[];
 }
 
 const MIN_FUSION_BRANCH_LIMIT = 8;
@@ -138,6 +140,7 @@ function toDebugChunksFromLegacyResults(results: FusedRetrievalResult[]): Retrie
 async function applyReranking(params: {
   query: string;
   rewrittenQuery: string | null;
+  history?: string[];
   limit: number;
   candidates: InternalRerankingCandidate[];
   config: RerankingConfig;
@@ -147,6 +150,7 @@ async function applyReranking(params: {
     {
       originalQuery: params.query,
       rewrittenQuery: params.rewrittenQuery,
+      history: params.history,
       candidates: params.candidates,
       limit: params.limit,
     },
@@ -232,7 +236,7 @@ export async function retrieveRelevantChunks(
   options: RetrieveRelevantChunksOptions = {},
   dependencies: RetrieveRelevantChunksDependencies = {},
 ): Promise<RetrievalResult[] | RetrievalDebugResponse> {
-  const { limit = 5, threshold = 0.5, debug = false } = options;
+  const { limit = 5, threshold = 0.5, debug = false, history } = options;
   const searchByQuery =
     dependencies.searchByQuery ??
     ((searchQuery, searchOptions) =>
@@ -294,6 +298,7 @@ export async function retrieveRelevantChunks(
     const rerankedChunks = await applyReranking({
       query: rewriteDecision.originalQuery,
       rewrittenQuery: rewriteDecision.rewrittenQuery,
+      history,
       limit,
       candidates: fusedResults.map((result) => ({
         chunkId: result.chunkId,
@@ -369,6 +374,7 @@ export async function retrieveRelevantChunks(
   const rerankedHybridChunks = await applyReranking({
     query: rewriteDecision.originalQuery,
     rewrittenQuery: rewriteDecision.rewrittenQuery,
+    history,
     limit,
     candidates: hybridFusedResults.map((result) => ({
       chunkId: result.chunkId,
