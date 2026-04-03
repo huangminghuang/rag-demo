@@ -10,6 +10,7 @@
     "db:migrate": "bash docker/migration/run-migrations.sh",
     "lint": "eslint",
     "test": "vitest run",
+    "test:hybrid-retrieval": "vitest run src/lib/retrieve/hybridRetrievalConfig.test.ts src/lib/retrieve/lexicalSearch.test.ts src/lib/retrieve/fusion.test.ts src/lib/retrieve/index.test.ts src/lib/retrieve/hybridRetrievalAcceptance.test.ts src/app/api/retrieve/route.test.ts src/app/api/chat/route.test.ts",
     "test:query-rewrite": "vitest run src/lib/retrieve/queryRewrite*.test.ts src/lib/retrieve/fusion.test.ts src/lib/retrieve/index.test.ts src/app/api/retrieve/route.test.ts src/app/api/chat/route.test.ts",
     "test:watch": "vitest"
   },

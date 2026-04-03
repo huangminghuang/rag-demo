@@ -242,6 +242,76 @@ Local references:
 - checklist plan: `docs/features/query-rewrite/CHECKLIST_PLAN.md`
 - test queries: `docs/features/query-rewrite/TEST_QUERIES.md`
 
+## Hybrid Retrieval Configuration
+
+Hybrid retrieval is an optional lexical + vector retrieval layer that runs inside `retrieveRelevantChunks(...)`. It composes with query rewrite and affects both `POST /api/retrieve` and `POST /api/chat`, but expanded hybrid diagnostics are only exposed through `POST /api/retrieve` when you explicitly request debug mode.
+
+Run `npm run test:hybrid-retrieval` to execute the focused automated hybrid-retrieval acceptance suite.
+
+Set these environment variables to control hybrid retrieval:
+
+- `HYBRID_RETRIEVAL_ENABLED` (default: `false`)
+- `HYBRID_LEXICAL_TRIGRAM_THRESHOLD` (default: `0.18`)
+- `HYBRID_PRE_FUSION_LIMIT` (default: `12`)
+- `HYBRID_RETRIEVAL_DEBUG` (default: `false`; reserved for server-side hybrid debug logging)
+
+How the current codebase uses these settings:
+
+- `HYBRID_RETRIEVAL_ENABLED` is the rollout master switch. Hybrid retrieval is disabled by default for rollout safety.
+- `HYBRID_LEXICAL_TRIGRAM_THRESHOLD` is the minimum trigram similarity required for lexical trigram matches to enter the lexical branch.
+- `HYBRID_PRE_FUSION_LIMIT` is the minimum per-branch candidate fetch size before hybrid fusion. The runtime still over-fetches with `max(limit * 3, HYBRID_PRE_FUSION_LIMIT)`.
+- `HYBRID_RETRIEVAL_DEBUG` is a reserved flag for internal server-side hybrid diagnostics. It does not change API response shapes by itself.
+
+How hybrid retrieval composes with query rewrite:
+
+- Hybrid retrieval keeps vector search as the semantic branch and adds one lexical branch per active query family.
+- When query rewrite does not apply, hybrid retrieval uses:
+- `vector_original`
+- `lexical_original`
+- When query rewrite applies, hybrid retrieval uses:
+- `vector_original`
+- `lexical_original`
+- `vector_rewritten`
+- `lexical_rewritten`
+- Exact identifiers, file names, config paths, and commands benefit most from the lexical branch.
+- Conversational questions still benefit from vector search and, when enabled, rewritten-query branches.
+
+Hybrid debug workflow for `POST /api/retrieve`:
+
+```bash
+curl -X POST http://localhost:3000/api/retrieve \
+  -H "Content-Type: application/json" \
+  -H "x-csrf-token: <csrf-token>" \
+  -b "csrf_token=<csrf-cookie>; auth_session=<session-cookie>" \
+  -d '{"query":"import.meta.env","limit":5,"debug":true}'
+```
+
+When `debug` is `true`, the response includes:
+
+- `originalQuery`
+- `rewrittenQuery`
+- `rewriteApplied`
+- `rewriteReason`
+- `originalBranchCount`
+- `rewrittenBranchCount`
+- `branchCounts`
+- `fusedCount`
+- per-result `matchedBy` as a list of matched branch sources
+
+Manual verification guidance:
+
+- Use exact identifier queries such as `import.meta.env`, `server.proxy`, and `optimizeDeps` to confirm lexical matches appear in debug output.
+- Use file names and config paths such as `vite.config.ts` and `resolve.alias` to confirm exact-lookups improve or remain stable.
+- Use CLI command queries such as `vite build` and `vite preview` to confirm lexical branches preserve exact command matches.
+- Use conversational questions with rewrite enabled to confirm vector and lexical rewritten branches can both contribute to final results.
+- Disable hybrid retrieval and confirm the system falls back to the prior vector-only behavior.
+
+Local references:
+
+- hybrid retrieval PRD: `docs/features/hybrid-retrieval/PRD.md`
+- checklist plan: `docs/features/hybrid-retrieval/CHECKLIST_PLAN.md`
+- test queries: `docs/features/hybrid-retrieval/TEST_QUERIES.md`
+
 ## Embedding Model and Quota Configuration
 
 Set these environment variables to control embedding model selection and embedding quota enforcement:
