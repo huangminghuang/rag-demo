@@ -74,11 +74,11 @@
 - [x] reranking skip and fallback behavior
 
 ## 9. Evaluation and Acceptance
-- [ ] Add automated reranking coverage for top-1/top-3 quality improvements.
-- [ ] Confirm exact identifier-style queries do not regress under reranking.
-- [ ] Confirm file names, config paths, and commands remain strong after reranking.
-- [ ] Confirm conversational questions improve or remain stable in top-ranked context.
-- [ ] Confirm near-duplicate candidate sets prefer distinct useful evidence when appropriate.
-- [ ] Confirm reranking debug metadata is visible only in retrieve debug mode.
-- [ ] Confirm chat uses the same reranked retrieval pipeline without exposing debug internals.
-- [ ] Confirm the public retrieval and chat APIs remain stable unless debug mode is explicitly requested on retrieve.
+- [x] Add automated reranking coverage for top-1/top-3 quality improvements.
+- [x] Confirm exact identifier-style queries do not regress under reranking.
+- [x] Confirm file names, config paths, and commands remain strong after reranking.
+- [x] Confirm conversational questions improve or remain stable in top-ranked context.
+- [x] Confirm near-duplicate candidate sets prefer distinct useful evidence when appropriate.
+- [x] Confirm reranking debug metadata is visible only in retrieve debug mode.
+- [x] Confirm chat uses the same reranked retrieval pipeline without exposing debug internals.
+- [x] Confirm the public retrieval and chat APIs remain stable unless debug mode is explicitly requested on retrieve.
