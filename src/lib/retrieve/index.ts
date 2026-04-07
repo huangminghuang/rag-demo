@@ -7,12 +7,22 @@ import {
   fuseRetrievalResults,
   type RetrievalBranchSource,
   type RetrievalBranchResult,
+  type FusedRetrievalResult,
   type RetrievalMatchSource,
 } from "./fusion";
 import {
   resolveHybridRetrievalConfig,
   type HybridRetrievalConfig,
 } from "./hybridRetrievalConfig";
+import {
+  rerankCandidates,
+  type RerankingResult,
+  type RerankingStatus,
+} from "./reranker";
+import {
+  resolveRerankingConfig,
+  type RerankingConfig,
+} from "./rerankingConfig";
 import { searchChunksLexically } from "./lexicalSearch";
 import { resolveQueryRewriteConfig, type QueryRewriteConfig } from "./queryRewriteConfig";
 import {
@@ -48,11 +58,23 @@ export interface RetrievalDebugMetadata {
   rewrittenBranchCount: number;
   branchCounts: RetrievalDebugBranchCounts;
   fusedCount: number;
+  reranking?: RetrievalDebugRerankingMetadata;
 }
 
 export interface RetrievalDebugResponse {
   chunks: RetrievalDebugChunk[];
   debug: RetrievalDebugMetadata;
+}
+
+export interface RetrievalDebugRerankingMetadata {
+  status: RerankingStatus;
+  applied: boolean;
+  inputCount: number;
+  outputCount: number;
+  beforeIds: string[];
+  afterIds: string[];
+  diagnostics: RerankingResult["diagnostics"];
+  fallbackReason?: "timeout" | "model_failed" | "invalid_output";
 }
 
 type StoredRetrievalResult = RetrievalBranchResult;
@@ -68,20 +90,33 @@ interface RetrieveRelevantChunksDependencies {
     options: { limit: number; trigramThreshold: number },
   ) => Promise<StoredRetrievalResult[]>;
   resolveHybridConfig?: () => HybridRetrievalConfig;
+  resolveRerankingConfig?: () => RerankingConfig;
   resolveRewriteConfig?: () => QueryRewriteConfig;
   rewriteQuery?: (
     query: string,
     config: QueryRewriteConfig,
   ) => Promise<QueryRewriteDecision>;
+  rerankRetrievedCandidates?: (
+    request: {
+      originalQuery: string;
+      rewrittenQuery: string | null;
+      history?: string[];
+      candidates: InternalRerankingCandidate[];
+      limit: number;
+    },
+    config: RerankingConfig,
+  ) => Promise<RerankingResult>;
 }
 
 interface RetrieveRelevantChunksOptions {
   limit?: number;
   threshold?: number;
   debug?: boolean;
+  history?: string[];
 }
 
 const MIN_FUSION_BRANCH_LIMIT = 8;
+type InternalRerankingCandidate = RetrievalDebugChunk & { chunkId: string };
 
 function toPublicResult(result: StoredRetrievalResult): RetrievalResult {
   return {
@@ -109,6 +144,91 @@ function toLegacyDebugMatchedBy(matchedBy: RetrievalMatchSource): RetrievalBranc
   }
 
   return matchedBy === "original" ? ["vector_original"] : ["vector_rewritten"];
+}
+
+function toDebugChunksFromLegacyResults(results: FusedRetrievalResult[]): RetrievalDebugChunk[] {
+  return results.map((result) => toDebugChunk(result, toLegacyDebugMatchedBy(result.matchedBy)));
+}
+
+async function applyReranking(params: {
+  query: string;
+  rewrittenQuery: string | null;
+  history?: string[];
+  limit: number;
+  candidates: InternalRerankingCandidate[];
+  config: RerankingConfig;
+  rerankRetrievedCandidates: NonNullable<RetrieveRelevantChunksDependencies["rerankRetrievedCandidates"]>;
+}): Promise<{ chunks: RetrievalDebugChunk[]; reranking: RetrievalDebugRerankingMetadata }> {
+  const rerankingResult = await params.rerankRetrievedCandidates(
+    {
+      originalQuery: params.query,
+      rewrittenQuery: params.rewrittenQuery,
+      history: params.history,
+      candidates: params.candidates,
+      limit: params.limit,
+    },
+    params.config,
+  );
+
+  return {
+    chunks: rerankingResult.candidates.map((candidate) => ({
+      content: candidate.content,
+      url: candidate.url,
+      title: candidate.title,
+      anchor: candidate.anchor,
+      similarity: candidate.similarity,
+      matchedBy: [...candidate.matchedBy],
+    })),
+    reranking: toDebugRerankingMetadata(rerankingResult),
+  };
+}
+
+function toFallbackReason(
+  status: RerankingStatus,
+): RetrievalDebugRerankingMetadata["fallbackReason"] {
+  switch (status) {
+    case "fallback_timeout":
+      return "timeout";
+    case "fallback_model_failed":
+      return "model_failed";
+    case "fallback_invalid_output":
+      return "invalid_output";
+    default:
+      return undefined;
+  }
+}
+
+function toDebugRerankingMetadata(result: RerankingResult): RetrievalDebugRerankingMetadata {
+  const fallbackReason = toFallbackReason(result.status);
+
+  return {
+    status: result.status,
+    applied: result.applied,
+    inputCount: result.inputCount,
+    outputCount: result.outputCount,
+    beforeIds: [...result.beforeIds],
+    afterIds: [...result.afterIds],
+    diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+    ...(fallbackReason ? { fallbackReason } : {}),
+  };
+}
+
+function createSkippedRerankingMetadata(params: {
+  status: "skipped_disabled" | "skipped_below_limit";
+  candidateIds: string[];
+  outputCount?: number;
+}): RetrievalDebugRerankingMetadata {
+  const outputCount = params.outputCount ?? params.candidateIds.length;
+
+  return {
+    status: params.status,
+    applied: false,
+    inputCount: params.candidateIds.length,
+    outputCount,
+    beforeIds: [...params.candidateIds],
+    afterIds: params.candidateIds.slice(0, outputCount),
+    diagnostics: [],
+  };
 }
 
 function createBranchCounts(overrides: Partial<RetrievalDebugBranchCounts>): RetrievalDebugBranchCounts {
@@ -180,7 +300,7 @@ export async function retrieveRelevantChunks(
   options: RetrieveRelevantChunksOptions = {},
   dependencies: RetrieveRelevantChunksDependencies = {},
 ): Promise<RetrievalResult[] | RetrievalDebugResponse> {
-  const { limit = 5, threshold = 0.5, debug = false } = options;
+  const { limit = 5, threshold = 0.5, debug = false, history } = options;
   const searchByQuery =
     dependencies.searchByQuery ??
     ((searchQuery, searchOptions) =>
@@ -192,18 +312,33 @@ export async function retrieveRelevantChunks(
     ((searchQuery, searchOptions) => searchChunksLexically(searchQuery, searchOptions));
   const resolveHybridConfig =
     dependencies.resolveHybridConfig ?? (() => resolveHybridRetrievalConfig());
+  const resolveRerankingConfigFromEnv =
+    dependencies.resolveRerankingConfig ?? (() => resolveRerankingConfig());
   const resolveRewriteConfig =
     dependencies.resolveRewriteConfig ?? (() => resolveQueryRewriteConfig());
   const hybridConfig = resolveHybridConfig();
+  const rerankingConfig = resolveRerankingConfigFromEnv();
   const rewriteQuery = dependencies.rewriteQuery ?? rewriteQueryForRetrieval;
+  const rerankRetrievedCandidates = dependencies.rerankRetrievedCandidates ?? rerankCandidates;
   const rewriteConfig = resolveRewriteConfig();
   const rewriteDecision = await rewriteQuery(query, rewriteConfig);
 
   if (!hybridConfig.enabled && !rewriteDecision.applied) {
     const originalOnlyResults = await searchByQuery(query, { limit, threshold });
     if (debug) {
+      const reranking =
+        rerankingConfig.enabled
+          ? createSkippedRerankingMetadata({
+              status: "skipped_below_limit",
+              candidateIds: originalOnlyResults.map((result) => result.chunkId),
+            })
+          : createSkippedRerankingMetadata({
+              status: "skipped_disabled",
+              candidateIds: originalOnlyResults.map((result) => result.chunkId),
+            });
+
       return {
-        chunks: originalOnlyResults.map((result) => toDebugChunk(result, "original")),
+        chunks: originalOnlyResults.map((result) => toDebugChunk(result, ["vector_original"])),
         debug: {
           originalQuery: rewriteDecision.originalQuery,
           rewrittenQuery: null,
@@ -215,6 +350,7 @@ export async function retrieveRelevantChunks(
             vectorOriginal: originalOnlyResults.length,
           }),
           fusedCount: originalOnlyResults.length,
+          reranking,
         },
       };
     }
@@ -235,11 +371,22 @@ export async function retrieveRelevantChunks(
       limit,
     });
 
+    const rerankingResult = await applyReranking({
+      query: rewriteDecision.originalQuery,
+      rewrittenQuery: rewriteDecision.rewrittenQuery,
+      history,
+      limit,
+      candidates: fusedResults.map((result) => ({
+        chunkId: result.chunkId,
+        ...toDebugChunk(result, toLegacyDebugMatchedBy(result.matchedBy)),
+      })),
+      config: rerankingConfig,
+      rerankRetrievedCandidates,
+    });
+
     if (debug) {
       return {
-        chunks: fusedResults.map((result) =>
-          toDebugChunk(result, toLegacyDebugMatchedBy(result.matchedBy)),
-        ),
+        chunks: rerankingResult.chunks,
         debug: {
           originalQuery: rewriteDecision.originalQuery,
           rewrittenQuery: rewriteDecision.rewrittenQuery,
@@ -252,11 +399,12 @@ export async function retrieveRelevantChunks(
             vectorRewritten: rewrittenResults.length,
           }),
           fusedCount: fusedResults.length,
+          reranking: rerankingResult.reranking,
         },
       };
     }
 
-    return fusedResults.map(toPublicResult);
+    return rerankingResult.chunks.map(toPublicResult);
   }
 
   const preFusionFetchLimit = getHybridPreFusionFetchLimit(limit, hybridConfig.preFusionLimit);
@@ -300,9 +448,22 @@ export async function retrieveRelevantChunks(
     limit,
   });
 
+  const rerankingResult = await applyReranking({
+    query: rewriteDecision.originalQuery,
+    rewrittenQuery: rewriteDecision.rewrittenQuery,
+    history,
+    limit,
+    candidates: hybridFusedResults.map((result) => ({
+      chunkId: result.chunkId,
+      ...toDebugChunk(result, result.matchedBy),
+    })),
+    config: rerankingConfig,
+    rerankRetrievedCandidates,
+  });
+
   if (debug) {
     return {
-      chunks: hybridFusedResults.map((result) => toDebugChunk(result, result.matchedBy)),
+      chunks: rerankingResult.chunks,
       debug: {
         originalQuery: rewriteDecision.originalQuery,
         rewrittenQuery: rewriteDecision.rewrittenQuery,
@@ -317,9 +478,10 @@ export async function retrieveRelevantChunks(
           lexicalRewritten: rewrittenLexicalResults.length,
         }),
         fusedCount: hybridFusedResults.length,
+        reranking: rerankingResult.reranking,
       },
     };
   }
 
-  return hybridFusedResults.map(toPublicResult);
+  return rerankingResult.chunks.map(toPublicResult);
 }

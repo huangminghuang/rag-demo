@@ -48,6 +48,21 @@ export function getQueryRewriteGenAI(env: NodeJS.ProcessEnv = process.env): Goog
   return new GoogleGenerativeAI(getQueryRewriteApiKey(env));
 }
 
+// Resolve the API key for reranking requests, falling back to the shared Gemini key.
+export function getRerankingApiKey(env: NodeJS.ProcessEnv = process.env): string {
+  const apiKey = env.RERANKING_API_KEY || env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("RERANKING_API_KEY or GEMINI_API_KEY must be defined in the environment variables.");
+  }
+
+  return apiKey;
+}
+
+// Create a Gemini client for reranking requests so they can use a dedicated API key when configured.
+export function getRerankingGenAI(env: NodeJS.ProcessEnv = process.env): GoogleGenerativeAI {
+  return new GoogleGenerativeAI(getRerankingApiKey(env));
+}
+
 // Check whether verbose reasoning-model prompt logging is enabled for this request.
 function isReasoningVerboseDebugEnabled(): boolean {
   return process.env.REASONING_VERBOSE_DEBUG === "true";

@@ -66,10 +66,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Last message must be a user message with content" }, { status: 400 });
     }
 
+    // Gemini requires conversation history to start with a user message.
+    const rawHistory = messages
+      .slice(0, -1)
+      .map((m) => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: String(m.content ?? "").trim() }],
+      }))
+      .filter((m) => m.parts[0].text.length > 0);
+
+    const firstUserIndex = rawHistory.findIndex((m) => m.role === "user");
+    const history = firstUserIndex === -1 ? [] : rawHistory.slice(firstUserIndex);
+    const historyTexts = history.map((entry) => entry.parts[0].text);
+
     // 1. Retrieve relevant chunks as context
     const relevantChunks = await retrieveRelevantChunks(userMessage, {
       limit: 5,
       threshold: getChatRetrieveThreshold(),
+      history: historyTexts,
     });
 
     // 2. Build the context string
@@ -88,22 +102,10 @@ DOCUMENTATION CONTEXT:
 ${context}
 `;
 
-    // Gemini requires conversation history to start with a user message.
-    const rawHistory = messages
-      .slice(0, -1)
-      .map((m) => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{ text: String(m.content ?? "").trim() }],
-      }))
-      .filter((m) => m.parts[0].text.length > 0);
-
-    const firstUserIndex = rawHistory.findIndex((m) => m.role === "user");
-    const history = firstUserIndex === -1 ? [] : rawHistory.slice(firstUserIndex);
-
     const inputTextsForEstimate = [
       systemPrompt,
       userMessage,
-      ...history.map((h) => h.parts[0].text),
+      ...historyTexts,
     ];
     const estimatedInputTokens = estimateQueryTokens(inputTextsForEstimate);
     const quotaResult = consumeQueryQuota(estimatedInputTokens);

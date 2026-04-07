@@ -263,6 +263,84 @@ describe("retrieveRelevantChunks", () => {
           lexicalRewritten: 0,
         },
         fusedCount: 2,
+        reranking: {
+          status: "skipped_disabled",
+          applied: false,
+          inputCount: 2,
+          outputCount: 2,
+          beforeIds: ["chunk-original-only", "chunk-both"],
+          afterIds: ["chunk-original-only", "chunk-both"],
+          diagnostics: [],
+        },
+      },
+    });
+  });
+
+  it("returns skipped reranking metadata for original-only debug retrieval", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi.fn().mockResolvedValue([
+      {
+        chunkId: "chunk-1",
+        content: "Exact identifier match",
+        url: "https://vite.dev/config/shared-options",
+        title: "Config",
+        anchor: "resolve-alias",
+        similarity: 0.91,
+      },
+    ]);
+
+    const result = await retrieveRelevantChunks(
+      "resolve.alias",
+      { limit: 3, threshold: 0.55, debug: true },
+      {
+        searchByQuery,
+        resolveRerankingConfig: () =>
+          ({ enabled: false, candidateCount: 10, timeoutMs: 2500, debug: false }),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: false,
+          originalQuery: "resolve.alias",
+          rewrittenQuery: null,
+          reason: "identifier_like",
+        }),
+      },
+    );
+
+    expect(result).toEqual({
+      chunks: [
+        {
+          content: "Exact identifier match",
+          url: "https://vite.dev/config/shared-options",
+          title: "Config",
+          anchor: "resolve-alias",
+          similarity: 0.91,
+          matchedBy: ["vector_original"],
+        },
+      ],
+      debug: {
+        originalQuery: "resolve.alias",
+        rewrittenQuery: null,
+        rewriteApplied: false,
+        rewriteReason: "identifier_like",
+        originalBranchCount: 1,
+        rewrittenBranchCount: 0,
+        branchCounts: {
+          vectorOriginal: 1,
+          lexicalOriginal: 0,
+          vectorRewritten: 0,
+          lexicalRewritten: 0,
+        },
+        fusedCount: 1,
+        reranking: {
+          status: "skipped_disabled",
+          applied: false,
+          inputCount: 1,
+          outputCount: 1,
+          beforeIds: ["chunk-1"],
+          afterIds: ["chunk-1"],
+          diagnostics: [],
+        },
       },
     });
   });
@@ -391,6 +469,391 @@ describe("retrieveRelevantChunks", () => {
         similarity: expect.any(Number),
       },
     ]);
+  });
+
+  it("reranks fused vector results through the shared retrieval boundary when enabled", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-original",
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-rewritten",
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+        },
+      ]);
+    const rerankRetrievedCandidates = vi.fn().mockResolvedValue({
+      applied: true,
+      status: "applied",
+      inputCount: 2,
+      outputCount: 2,
+      beforeIds: ["chunk-original", "chunk-rewritten"],
+      afterIds: ["chunk-rewritten", "chunk-original"],
+      diagnostics: [],
+      candidates: [
+        {
+          chunkId: "chunk-rewritten",
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+          matchedBy: ["vector_rewritten"],
+        },
+        {
+          chunkId: "chunk-original",
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+          matchedBy: ["vector_original"],
+        },
+      ],
+    });
+
+    const results = await retrieveRelevantChunks(
+      "How do I configure a proxy in Vite?",
+      { limit: 2, threshold: 0.6 },
+      {
+        searchByQuery,
+        resolveRerankingConfig: () =>
+          ({ enabled: true, candidateCount: 10, timeoutMs: 2500, debug: false }),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: true,
+          originalQuery: "How do I configure a proxy in Vite?",
+          rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+          reason: "applied",
+        }),
+        rerankRetrievedCandidates,
+      },
+    );
+
+    expect(rerankRetrievedCandidates).toHaveBeenCalledWith(
+      {
+        originalQuery: "How do I configure a proxy in Vite?",
+        rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+        candidates: [
+          {
+            chunkId: "chunk-original",
+            content: "Original branch content",
+            url: "https://vite.dev/guide/env",
+            title: "Env",
+            anchor: null,
+            similarity: 0.82,
+            matchedBy: ["vector_original"],
+          },
+          {
+            chunkId: "chunk-rewritten",
+            content: "Rewritten branch content",
+            url: "https://vite.dev/config/server-options",
+            title: "Server Options",
+            anchor: null,
+            similarity: 0.81,
+            matchedBy: ["vector_rewritten"],
+          },
+        ],
+        limit: 2,
+      },
+      {
+        enabled: true,
+        candidateCount: 10,
+        timeoutMs: 2500,
+        debug: false,
+      },
+    );
+    expect(results).toEqual([
+      {
+        content: "Rewritten branch content",
+        url: "https://vite.dev/config/server-options",
+        title: "Server Options",
+        anchor: null,
+        similarity: 0.81,
+      },
+      {
+        content: "Original branch content",
+        url: "https://vite.dev/guide/env",
+        title: "Env",
+        anchor: null,
+        similarity: 0.82,
+      },
+    ]);
+  });
+
+  it("returns reranking debug metadata when reranking applies", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-original",
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-rewritten",
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+        },
+      ]);
+    const rerankRetrievedCandidates = vi.fn().mockResolvedValue({
+      applied: true,
+      status: "applied",
+      inputCount: 2,
+      outputCount: 2,
+      beforeIds: ["chunk-original", "chunk-rewritten"],
+      afterIds: ["chunk-rewritten", "chunk-original"],
+      diagnostics: [
+        {
+          chunkId: "chunk-rewritten",
+          score: 0.97,
+          reason: "More directly answers proxy setup.",
+        },
+        {
+          chunkId: "chunk-original",
+          score: 0.61,
+          reason: "Relevant but less specific.",
+        },
+      ],
+      candidates: [
+        {
+          chunkId: "chunk-rewritten",
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+          matchedBy: ["vector_rewritten"],
+        },
+        {
+          chunkId: "chunk-original",
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+          matchedBy: ["vector_original"],
+        },
+      ],
+    });
+
+    const result = await retrieveRelevantChunks(
+      "How do I configure a proxy in Vite?",
+      { limit: 2, threshold: 0.6, debug: true },
+      {
+        searchByQuery,
+        resolveRerankingConfig: () =>
+          ({ enabled: true, candidateCount: 10, timeoutMs: 2500, debug: false }),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: true,
+          originalQuery: "How do I configure a proxy in Vite?",
+          rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+          reason: "applied",
+        }),
+        rerankRetrievedCandidates,
+      },
+    );
+
+    expect(result).toEqual({
+      chunks: [
+        {
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+          matchedBy: ["vector_rewritten"],
+        },
+        {
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+          matchedBy: ["vector_original"],
+        },
+      ],
+      debug: {
+        originalQuery: "How do I configure a proxy in Vite?",
+        rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 1,
+        rewrittenBranchCount: 1,
+        branchCounts: {
+          vectorOriginal: 1,
+          lexicalOriginal: 0,
+          vectorRewritten: 1,
+          lexicalRewritten: 0,
+        },
+        fusedCount: 2,
+        reranking: {
+          status: "applied",
+          applied: true,
+          inputCount: 2,
+          outputCount: 2,
+          beforeIds: ["chunk-original", "chunk-rewritten"],
+          afterIds: ["chunk-rewritten", "chunk-original"],
+          diagnostics: [
+            {
+              chunkId: "chunk-rewritten",
+              score: 0.97,
+              reason: "More directly answers proxy setup.",
+            },
+            {
+              chunkId: "chunk-original",
+              score: 0.61,
+              reason: "Relevant but less specific.",
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("returns reranking fallback metadata when reranking does not apply successfully", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-original",
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          chunkId: "chunk-rewritten",
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+        },
+      ]);
+    const rerankRetrievedCandidates = vi.fn().mockResolvedValue({
+      applied: false,
+      status: "fallback_model_failed",
+      inputCount: 2,
+      outputCount: 2,
+      beforeIds: ["chunk-original", "chunk-rewritten"],
+      afterIds: ["chunk-original", "chunk-rewritten"],
+      diagnostics: [],
+      candidates: [
+        {
+          chunkId: "chunk-original",
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+          matchedBy: ["vector_original"],
+        },
+        {
+          chunkId: "chunk-rewritten",
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+          matchedBy: ["vector_rewritten"],
+        },
+      ],
+    });
+
+    const result = await retrieveRelevantChunks(
+      "How do I configure a proxy in Vite?",
+      { limit: 2, threshold: 0.6, debug: true },
+      {
+        searchByQuery,
+        resolveRerankingConfig: () =>
+          ({ enabled: true, candidateCount: 10, timeoutMs: 2500, debug: false }),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: true,
+          originalQuery: "How do I configure a proxy in Vite?",
+          rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+          reason: "applied",
+        }),
+        rerankRetrievedCandidates,
+      },
+    );
+
+    expect(result).toEqual({
+      chunks: [
+        {
+          content: "Original branch content",
+          url: "https://vite.dev/guide/env",
+          title: "Env",
+          anchor: null,
+          similarity: 0.82,
+          matchedBy: ["vector_original"],
+        },
+        {
+          content: "Rewritten branch content",
+          url: "https://vite.dev/config/server-options",
+          title: "Server Options",
+          anchor: null,
+          similarity: 0.81,
+          matchedBy: ["vector_rewritten"],
+        },
+      ],
+      debug: {
+        originalQuery: "How do I configure a proxy in Vite?",
+        rewrittenQuery: "Vite dev server proxy server.proxy configuration",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 1,
+        rewrittenBranchCount: 1,
+        branchCounts: {
+          vectorOriginal: 1,
+          lexicalOriginal: 0,
+          vectorRewritten: 1,
+          lexicalRewritten: 0,
+        },
+        fusedCount: 2,
+        reranking: {
+          status: "fallback_model_failed",
+          applied: false,
+          inputCount: 2,
+          outputCount: 2,
+          beforeIds: ["chunk-original", "chunk-rewritten"],
+          afterIds: ["chunk-original", "chunk-rewritten"],
+          diagnostics: [],
+          fallbackReason: "model_failed",
+        },
+      },
+    });
   });
 
   it("uses hybrid retrieval for exact queries even when rewrite is skipped", async () => {
@@ -567,7 +1030,143 @@ describe("retrieveRelevantChunks", () => {
           lexicalRewritten: 1,
         },
         fusedCount: 3,
+        reranking: {
+          status: "skipped_disabled",
+          applied: false,
+          inputCount: 3,
+          outputCount: 3,
+          beforeIds: ["chunk-shared", "chunk-vector", "chunk-lexical-rewritten"],
+          afterIds: ["chunk-shared", "chunk-vector", "chunk-lexical-rewritten"],
+          diagnostics: [],
+        },
       },
     });
+  });
+
+  it("reranks hybrid fused results through the shared retrieval boundary when enabled", async () => {
+    const { retrieveRelevantChunks } = await import("./index");
+    const searchByQuery = vi.fn().mockResolvedValue([
+      {
+        chunkId: "chunk-vector",
+        content: "Vector branch content",
+        url: "https://vite.dev/guide/features",
+        title: "Features",
+        anchor: null,
+        similarity: 0.82,
+      },
+    ]);
+    const searchLexically = vi.fn().mockResolvedValue([
+      {
+        chunkId: "chunk-lexical",
+        content: "Exact optimizeDeps identifier match",
+        url: "https://vite.dev/config/dep-optimization-options",
+        title: "Dep Optimization Options",
+        anchor: null,
+        similarity: 0.9,
+      },
+    ]);
+    const rerankRetrievedCandidates = vi.fn().mockResolvedValue({
+      applied: true,
+      status: "applied",
+      inputCount: 2,
+      outputCount: 2,
+      beforeIds: ["chunk-lexical", "chunk-vector"],
+      afterIds: ["chunk-vector", "chunk-lexical"],
+      diagnostics: [],
+      candidates: [
+        {
+          chunkId: "chunk-vector",
+          content: "Vector branch content",
+          url: "https://vite.dev/guide/features",
+          title: "Features",
+          anchor: null,
+          similarity: 0.82,
+          matchedBy: ["vector_original"],
+        },
+        {
+          chunkId: "chunk-lexical",
+          content: "Exact optimizeDeps identifier match",
+          url: "https://vite.dev/config/dep-optimization-options",
+          title: "Dep Optimization Options",
+          anchor: null,
+          similarity: 0.9,
+          matchedBy: ["lexical_original"],
+        },
+      ],
+    });
+
+    const results = await retrieveRelevantChunks(
+      "optimizeDeps",
+      { limit: 2, threshold: 0.55 },
+      {
+        searchByQuery,
+        searchLexically,
+        resolveHybridConfig: () =>
+          resolveHybridRetrievalConfig({
+            HYBRID_RETRIEVAL_ENABLED: "true",
+          } as unknown as NodeJS.ProcessEnv),
+        resolveRerankingConfig: () =>
+          ({ enabled: true, candidateCount: 10, timeoutMs: 2500, debug: false }),
+        resolveRewriteConfig: () =>
+          resolveQueryRewriteConfig({ QUERY_REWRITE_ENABLED: "true" } as NodeJS.ProcessEnv),
+        rewriteQuery: vi.fn().mockResolvedValue({
+          applied: false,
+          originalQuery: "optimizeDeps",
+          rewrittenQuery: null,
+          reason: "identifier_like",
+        }),
+        rerankRetrievedCandidates,
+      },
+    );
+
+    expect(rerankRetrievedCandidates).toHaveBeenCalledWith(
+      {
+        originalQuery: "optimizeDeps",
+        rewrittenQuery: null,
+        candidates: [
+          {
+            chunkId: "chunk-lexical",
+            content: "Exact optimizeDeps identifier match",
+            url: "https://vite.dev/config/dep-optimization-options",
+            title: "Dep Optimization Options",
+            anchor: null,
+            similarity: expect.any(Number),
+            matchedBy: ["lexical_original"],
+          },
+          {
+            chunkId: "chunk-vector",
+            content: "Vector branch content",
+            url: "https://vite.dev/guide/features",
+            title: "Features",
+            anchor: null,
+            similarity: expect.any(Number),
+            matchedBy: ["vector_original"],
+          },
+        ],
+        limit: 2,
+      },
+      {
+        enabled: true,
+        candidateCount: 10,
+        timeoutMs: 2500,
+        debug: false,
+      },
+    );
+    expect(results).toEqual([
+      {
+        content: "Vector branch content",
+        url: "https://vite.dev/guide/features",
+        title: "Features",
+        anchor: null,
+        similarity: 0.82,
+      },
+      {
+        content: "Exact optimizeDeps identifier match",
+        url: "https://vite.dev/config/dep-optimization-options",
+        title: "Dep Optimization Options",
+        anchor: null,
+        similarity: 0.9,
+      },
+    ]);
   });
 });

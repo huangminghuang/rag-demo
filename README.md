@@ -312,6 +312,86 @@ Local references:
 - checklist plan: `docs/features/hybrid-retrieval/CHECKLIST_PLAN.md`
 - test queries: `docs/features/hybrid-retrieval/TEST_QUERIES.md`
 
+## Reranking Configuration
+
+Reranking is an optional retrieval-layer refinement that runs after fusion inside `retrieveRelevantChunks(...)`. It affects both `POST /api/retrieve` and `POST /api/chat`, but reranking diagnostics are only exposed through `POST /api/retrieve` when you explicitly request `debug: true`.
+
+Set these environment variables to control reranking:
+
+- `RERANKING_ENABLED` (default: `false`)
+- `RERANKING_API_KEY` (optional; falls back to `GEMINI_API_KEY`)
+- `RERANKING_MODEL_NAME` (default: `QUERY_MODEL_NAME`, otherwise `gemini-2.5-flash`)
+- `RERANKING_MODEL_API_VERSION` (default: `QUERY_MODEL_API_VERSION`, otherwise `v1beta`)
+- `RERANKING_CANDIDATE_COUNT` (default: `10`)
+- `RERANKING_TIMEOUT_MS` (default: `2500`)
+- `RERANKING_DEBUG` (default: `false`; enables server-side reranking decision logging)
+
+How the current codebase uses these settings:
+
+- `RERANKING_ENABLED` is the rollout master switch. Reranking is disabled by default for rollout safety.
+- `RERANKING_API_KEY` lets reranking use a dedicated Gemini API key; when unset, reranking falls back to `GEMINI_API_KEY`.
+- `RERANKING_MODEL_NAME` and `RERANKING_MODEL_API_VERSION` choose the Gemini model used for the reranking call. When unset, reranking reuses the query-model defaults before falling back to the built-in Gemini defaults.
+- `RERANKING_CANDIDATE_COUNT` controls how many fused candidates are sent into the reranker before the final top-`limit` slice is taken.
+- `RERANKING_TIMEOUT_MS` bounds the single reranking request latency. On timeout, model failure, or invalid structured output, retrieval fails open to the fused order.
+- `RERANKING_DEBUG` controls internal `[reranking-debug]` server logs. It does not change API response shapes by itself.
+
+How reranking composes with vector retrieval, query rewrite, and hybrid retrieval:
+
+- Reranking never replaces retrieval, rewrite, or fusion. It only reorders the fused candidate set after candidate selection is complete.
+- In vector-only retrieval, reranking sees fused `vector_original` candidates and, when query rewrite applies, `vector_rewritten` candidates.
+- In hybrid retrieval, reranking sees the already-fused cross-branch set built from `vector_original`, `lexical_original`, `vector_rewritten`, and `lexical_rewritten`.
+- The original user question is always the primary ranking signal.
+- When query rewrite applies, the rewritten query is passed as supporting context rather than replacing the original question.
+- Chat uses the same reranked retrieval boundary as direct retrieval, but does not expose reranking debug internals in the phase-1 public chat response.
+- If the fused candidate count is already less than or equal to the requested final limit, reranking is skipped and the fused order is returned unchanged.
+
+Reranking debug workflow for `POST /api/retrieve`:
+
+```bash
+curl -X POST http://localhost:3000/api/retrieve \
+  -H "Content-Type: application/json" \
+  -H "x-csrf-token: <csrf-token>" \
+  -b "csrf_token=<csrf-cookie>; auth_session=<session-cookie>" \
+  -d '{"query":"How do I configure a proxy for local API calls in Vite?","limit":5,"debug":true}'
+```
+
+When `debug` is `true`, the response includes the normal `chunks` array plus:
+
+- `debug.originalQuery`
+- `debug.rewrittenQuery`
+- `debug.rewriteApplied`
+- `debug.rewriteReason`
+- `debug.originalBranchCount`
+- `debug.rewrittenBranchCount`
+- `debug.branchCounts`
+- `debug.fusedCount`
+- per-result `matchedBy`
+- `debug.reranking.status`
+- `debug.reranking.applied`
+- `debug.reranking.inputCount`
+- `debug.reranking.outputCount`
+- `debug.reranking.beforeIds`
+- `debug.reranking.afterIds`
+- `debug.reranking.diagnostics` with optional per-candidate scores and short reasons when available
+- `debug.reranking.fallbackReason` when reranking times out, the model call fails, or the reranker returns invalid structured output
+
+Manual verification guidance:
+
+- Exact lexical lookups remaining stable:
+  Use exact identifiers, config paths, file names, and commands such as `import.meta.env`, `server.proxy`, `resolve.alias`, `vite.config.ts`, and `vite build`. Confirm reranking does not demote the precise lexical hit behind broader prose.
+- Conversational reranking improvements:
+  Use broad or conversational questions such as `How do environment variables work in Vite, and what is the VITE_ prefix for?` and `How do I configure a proxy for local API calls in Vite?`. Compare reranking enabled versus disabled and confirm the top result better matches answer usefulness.
+- Duplicate-sensitive ranking behavior:
+  Use multi-part questions such as `What are Vite modes, and how do they affect .env file loading?` and inspect whether reranking reduces redundant near-duplicate top slots when another candidate adds distinct evidence.
+- Reranking skip and fallback behavior:
+  Confirm `debug.reranking.status` shows `skipped_disabled` when reranking is off and `skipped_below_limit` when the fused candidate set is already at or below the final limit. Simulate timeout, model failure, or invalid reranker output and confirm the final order falls back to fused order with `debug.reranking.fallbackReason`.
+
+Local references:
+
+- reranking PRD: `docs/features/reranking/PRD.md`
+- checklist plan: `docs/features/reranking/CHECKLIST_PLAN.md`
+- test queries: `docs/features/reranking/TEST_QUERIES.md`
+
 ## Embedding Model and Quota Configuration
 
 Set these environment variables to control embedding model selection and embedding quota enforcement:
