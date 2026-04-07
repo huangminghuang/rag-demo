@@ -102,6 +102,21 @@ describe("POST /api/retrieve", () => {
           lexicalRewritten: 1,
         },
         fusedCount: 1,
+        reranking: {
+          status: "applied",
+          applied: true,
+          inputCount: 4,
+          outputCount: 1,
+          beforeIds: ["chunk-4", "chunk-2", "chunk-1", "chunk-3"],
+          afterIds: ["chunk-2"],
+          diagnostics: [
+            {
+              chunkId: "chunk-2",
+              score: 0.94,
+              reason: "Most directly answers the question.",
+            },
+          ],
+        },
       },
     });
 
@@ -154,6 +169,115 @@ describe("POST /api/retrieve", () => {
           lexicalRewritten: 1,
         },
         fusedCount: 1,
+        reranking: {
+          status: "applied",
+          applied: true,
+          inputCount: 4,
+          outputCount: 1,
+          beforeIds: ["chunk-4", "chunk-2", "chunk-1", "chunk-3"],
+          afterIds: ["chunk-2"],
+          diagnostics: [
+            {
+              chunkId: "chunk-2",
+              score: 0.94,
+              reason: "Most directly answers the question.",
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("returns reranking fallback details only in retrieve debug mode", async () => {
+    retrieveRelevantChunks.mockResolvedValue({
+      chunks: [
+        {
+          content: "Retrieved chunk",
+          url: "https://vite.dev/guide/env",
+          title: "Env Variables",
+          anchor: null,
+          similarity: 0.87,
+          matchedBy: ["vector_original"],
+        },
+      ],
+      debug: {
+        originalQuery: "How do environment variables work in Vite?",
+        rewrittenQuery: "Vite environment variables import.meta.env VITE_ prefix",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 3,
+        rewrittenBranchCount: 2,
+        branchCounts: {
+          vectorOriginal: 2,
+          lexicalOriginal: 1,
+          vectorRewritten: 1,
+          lexicalRewritten: 1,
+        },
+        fusedCount: 3,
+        reranking: {
+          status: "fallback_timeout",
+          applied: false,
+          inputCount: 3,
+          outputCount: 1,
+          beforeIds: ["chunk-1", "chunk-2", "chunk-3"],
+          afterIds: ["chunk-1"],
+          diagnostics: [],
+          fallbackReason: "timeout",
+        },
+      },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost:3000/api/retrieve", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "csrf_token=test-token",
+          "x-csrf-token": "test-token",
+        },
+        body: JSON.stringify({
+          query: "How do environment variables work in Vite?",
+          debug: true,
+        }),
+      }),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      chunks: [
+        {
+          content: "Retrieved chunk",
+          url: "https://vite.dev/guide/env",
+          title: "Env Variables",
+          anchor: null,
+          similarity: 0.87,
+          matchedBy: ["vector_original"],
+        },
+      ],
+      debug: {
+        originalQuery: "How do environment variables work in Vite?",
+        rewrittenQuery: "Vite environment variables import.meta.env VITE_ prefix",
+        rewriteApplied: true,
+        rewriteReason: "applied",
+        originalBranchCount: 3,
+        rewrittenBranchCount: 2,
+        branchCounts: {
+          vectorOriginal: 2,
+          lexicalOriginal: 1,
+          vectorRewritten: 1,
+          lexicalRewritten: 1,
+        },
+        fusedCount: 3,
+        reranking: {
+          status: "fallback_timeout",
+          applied: false,
+          inputCount: 3,
+          outputCount: 1,
+          beforeIds: ["chunk-1", "chunk-2", "chunk-3"],
+          afterIds: ["chunk-1"],
+          diagnostics: [],
+          fallbackReason: "timeout",
+        },
       },
     });
   });

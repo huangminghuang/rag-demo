@@ -53,25 +53,25 @@
 - [x] Add tests covering chat source ordering and citation stability after reranking.
 
 ## 7. Explicit Retrieve Debug Mode
-- [ ] Extend explicit debug mode on `POST /api/retrieve` with reranking visibility.
-- [ ] Return reranking metadata including applied/skipped/fallback status.
-- [ ] Return candidate counts and before/after candidate order in debug mode.
-- [ ] Return optional per-candidate scores and short reasons when available.
-- [ ] Return fallback reason when reranking does not apply successfully.
-- [ ] Keep the normal retrieve response shape unchanged when debug mode is not requested.
-- [ ] Do not expose reranking debug payload from `POST /api/chat` in phase 1.
-- [ ] Add tests covering debug and non-debug response shapes.
+- [x] Extend explicit debug mode on `POST /api/retrieve` with reranking visibility.
+- [x] Return reranking metadata including applied/skipped/fallback status.
+- [x] Return candidate counts and before/after candidate order in debug mode.
+- [x] Return optional per-candidate scores and short reasons when available.
+- [x] Return fallback reason when reranking does not apply successfully.
+- [x] Keep the normal retrieve response shape unchanged when debug mode is not requested.
+- [x] Do not expose reranking debug payload from `POST /api/chat` in phase 1.
+- [x] Add tests covering debug and non-debug response shapes.
 
 ## 8. Documentation and Verification
-- [ ] Document all reranking-related environment variables in `README.md`.
-- [ ] Document how reranking composes with vector retrieval, query rewrite, and hybrid retrieval.
-- [ ] Document the reranking debug workflow for `POST /api/retrieve`.
-- [ ] Add a reranking test query set in `docs/features/reranking`.
-- [ ] Add manual verification guidance for:
-- [ ] exact lexical lookups remaining stable
-- [ ] conversational reranking improvements
-- [ ] duplicate-sensitive ranking behavior
-- [ ] reranking skip and fallback behavior
+- [x] Document all reranking-related environment variables in `README.md`.
+- [x] Document how reranking composes with vector retrieval, query rewrite, and hybrid retrieval.
+- [x] Document the reranking debug workflow for `POST /api/retrieve`.
+- [x] Add a reranking test query set in `docs/features/reranking`.
+- [x] Add manual verification guidance for:
+- [x] exact lexical lookups remaining stable
+- [x] conversational reranking improvements
+- [x] duplicate-sensitive ranking behavior
+- [x] reranking skip and fallback behavior
 
 ## 9. Evaluation and Acceptance
 - [ ] Add automated reranking coverage for top-1/top-3 quality improvements.
