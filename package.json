@@ -10,6 +10,7 @@
     "db:migrate": "bash docker/migration/run-migrations.sh",
     "lint": "eslint",
     "test": "vitest run",
+    "test:ambiguity-gatekeeper": "vitest run src/lib/gemini.test.ts src/lib/chat/ambiguityGatekeeperConfig.test.ts src/lib/chat/ambiguityGatekeeper.test.ts src/app/api/chat/route.test.ts",
     "test:hybrid-retrieval": "vitest run src/lib/retrieve/hybridRetrievalConfig.test.ts src/lib/retrieve/lexicalSearch.test.ts src/lib/retrieve/fusion.test.ts src/lib/retrieve/index.test.ts src/lib/retrieve/hybridRetrievalAcceptance.test.ts src/app/api/retrieve/route.test.ts src/app/api/chat/route.test.ts",
     "test:reranking": "vitest run src/lib/retrieve/rerankingConfig.test.ts src/lib/retrieve/reranker.test.ts src/lib/retrieve/index.test.ts src/lib/retrieve/rerankingAcceptance.test.ts src/app/api/retrieve/route.test.ts src/app/api/chat/route.test.ts",
     "test:query-rewrite": "vitest run src/lib/retrieve/queryRewrite*.test.ts src/lib/retrieve/fusion.test.ts src/lib/retrieve/index.test.ts src/app/api/retrieve/route.test.ts src/app/api/chat/route.test.ts",

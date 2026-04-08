@@ -7,9 +7,14 @@ const startChatMock = vi.fn(() => ({
 const getGenerativeModelMock = vi.fn(() => ({
   startChat: startChatMock,
 }));
+const googleGenerativeAIConstructorMock = vi.fn();
 
 vi.mock("@google/generative-ai", () => ({
   GoogleGenerativeAI: class {
+    constructor(apiKey: string) {
+      googleGenerativeAIConstructorMock(apiKey);
+    }
+
     getGenerativeModel = getGenerativeModelMock;
   },
 }));
@@ -42,6 +47,7 @@ afterEach(() => {
   sendMessageMock.mockReset();
   startChatMock.mockClear();
   getGenerativeModelMock.mockClear();
+  googleGenerativeAIConstructorMock.mockClear();
 });
 
 describe("sendChatWithFallback", () => {
@@ -134,5 +140,47 @@ describe("getQueryRewriteApiKey", () => {
     const { getQueryRewriteApiKey } = await loadModule();
 
     expect(getQueryRewriteApiKey()).toBe("test-api-key");
+  });
+});
+
+describe("getAmbiguityGatekeeperApiKey", () => {
+  it("uses AMBIGUITY_GATEKEEPER_API_KEY when it is configured", async () => {
+    process.env.AMBIGUITY_GATEKEEPER_API_KEY = "gatekeeper-key";
+
+    const { getAmbiguityGatekeeperApiKey } = await loadModule();
+
+    expect(getAmbiguityGatekeeperApiKey()).toBe("gatekeeper-key");
+  });
+
+  it("falls back to GEMINI_API_KEY when AMBIGUITY_GATEKEEPER_API_KEY is not configured", async () => {
+    delete process.env.AMBIGUITY_GATEKEEPER_API_KEY;
+
+    const { getAmbiguityGatekeeperApiKey } = await loadModule();
+
+    expect(getAmbiguityGatekeeperApiKey()).toBe("test-api-key");
+  });
+
+  it("throws when neither AMBIGUITY_GATEKEEPER_API_KEY nor GEMINI_API_KEY is configured", async () => {
+    delete process.env.AMBIGUITY_GATEKEEPER_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+
+    const { getAmbiguityGatekeeperApiKey } = await loadModule();
+
+    expect(() => getAmbiguityGatekeeperApiKey()).toThrow(
+      "AMBIGUITY_GATEKEEPER_API_KEY or GEMINI_API_KEY must be defined in the environment variables.",
+    );
+  });
+
+  it("loads and creates the dedicated client when only AMBIGUITY_GATEKEEPER_API_KEY is configured", async () => {
+    delete process.env.GEMINI_API_KEY;
+    process.env.AMBIGUITY_GATEKEEPER_API_KEY = "gatekeeper-key";
+
+    const { getAmbiguityGatekeeperApiKey, getAmbiguityGatekeeperGenAI } = await loadModule();
+
+    expect(getAmbiguityGatekeeperApiKey()).toBe("gatekeeper-key");
+
+    getAmbiguityGatekeeperGenAI();
+
+    expect(googleGenerativeAIConstructorMock).toHaveBeenCalledWith("gatekeeper-key");
   });
 });

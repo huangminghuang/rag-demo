@@ -1,10 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Content } from "@google/generative-ai";
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("GEMINI_API_KEY is not defined in the environment variables.");
-}
-
 const queryModelName = process.env.QUERY_MODEL_NAME || "gemini-3.1-flash-lite-preview";
 const embeddingModelName = process.env.EMBED_MODEL_NAME || "gemini-embedding-001";
 const queryModelFallbacks = (process.env.QUERY_MODEL_FALLBACKS || "gemini-2.5-flash")
@@ -13,9 +9,52 @@ const queryModelFallbacks = (process.env.QUERY_MODEL_FALLBACKS || "gemini-2.5-fl
   .filter(Boolean);
 const queryApiVersion = process.env.QUERY_MODEL_API_VERSION || "v1beta";
 
-export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+function getGeminiApiKey(env: NodeJS.ProcessEnv = process.env): string {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not defined in the environment variables.");
+  }
 
-export const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName }, { apiVersion: "v1beta" });
+  return apiKey;
+}
+
+function getSharedGenAI(): GoogleGenerativeAI {
+  if (!sharedGenAI) {
+    sharedGenAI = new GoogleGenerativeAI(getGeminiApiKey());
+  }
+
+  return sharedGenAI;
+}
+
+function createLazySharedClient<T extends object>(loadValue: () => T): T {
+  return new Proxy({} as T, {
+    get(_target, prop) {
+      const target = loadValue();
+      const value = Reflect.get(target as object, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
+let sharedGenAI: GoogleGenerativeAI | undefined;
+let sharedEmbeddingModel: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | undefined;
+
+function getSharedEmbeddingModel() {
+  if (!sharedEmbeddingModel) {
+    sharedEmbeddingModel = getSharedGenAI().getGenerativeModel(
+      { model: embeddingModelName },
+      { apiVersion: "v1beta" },
+    );
+  }
+
+  return sharedEmbeddingModel;
+}
+
+export const genAI = createLazySharedClient<GoogleGenerativeAI>(getSharedGenAI);
+
+export const embeddingModel = createLazySharedClient<ReturnType<GoogleGenerativeAI["getGenerativeModel"]>>(
+  getSharedEmbeddingModel,
+);
 export { queryModelName, embeddingModelName };
 
 // Resolve the API key for enrichment-model requests, falling back to the shared Gemini key.
@@ -61,6 +100,23 @@ export function getRerankingApiKey(env: NodeJS.ProcessEnv = process.env): string
 // Create a Gemini client for reranking requests so they can use a dedicated API key when configured.
 export function getRerankingGenAI(env: NodeJS.ProcessEnv = process.env): GoogleGenerativeAI {
   return new GoogleGenerativeAI(getRerankingApiKey(env));
+}
+
+// Resolve the API key for ambiguity-gatekeeper requests, falling back to the shared Gemini key.
+export function getAmbiguityGatekeeperApiKey(env: NodeJS.ProcessEnv = process.env): string {
+  const apiKey = env.AMBIGUITY_GATEKEEPER_API_KEY || env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "AMBIGUITY_GATEKEEPER_API_KEY or GEMINI_API_KEY must be defined in the environment variables.",
+    );
+  }
+
+  return apiKey;
+}
+
+// Create a Gemini client for ambiguity-gatekeeper requests so they can use a dedicated API key when configured.
+export function getAmbiguityGatekeeperGenAI(env: NodeJS.ProcessEnv = process.env): GoogleGenerativeAI {
+  return new GoogleGenerativeAI(getAmbiguityGatekeeperApiKey(env));
 }
 
 // Check whether verbose reasoning-model prompt logging is enabled for this request.

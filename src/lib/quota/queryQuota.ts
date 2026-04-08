@@ -95,21 +95,7 @@ function resetBucketsIfNeeded(nowMs: number): void {
   }
 }
 
-// Fast approximation suitable for quota gating without tokenizer calls.
-function estimateTokensFromText(text: string): number {
-  if (!text) return 0;
-  return Math.ceil(text.length / 4);
-}
-
-export function estimateQueryTokens(inputTexts: string[]): number {
-  return inputTexts.reduce((sum, text) => sum + estimateTokensFromText(text), 0);
-}
-
-export function getQueryQuotaConfig(): QuotaConfig {
-  return getQuotaConfig();
-}
-
-export function consumeQueryQuota(estimatedInputTokens: number): QuotaCheckResult {
+function evaluateQueryQuota(estimatedInputTokens: number, mutate: boolean): QuotaCheckResult {
   const nowMs = Date.now();
   resetBucketsIfNeeded(nowMs);
 
@@ -143,9 +129,33 @@ export function consumeQueryQuota(estimatedInputTokens: number): QuotaCheckResul
     };
   }
 
-  minuteBucket.requests += 1;
-  minuteBucket.tokens += estimatedTotalTokens;
-  dayBucket.requests += 1;
+  if (mutate) {
+    minuteBucket.requests += 1;
+    minuteBucket.tokens += estimatedTotalTokens;
+    dayBucket.requests += 1;
+  }
 
   return { allowed: true };
+}
+
+// Fast approximation suitable for quota gating without tokenizer calls.
+function estimateTokensFromText(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+export function estimateQueryTokens(inputTexts: string[]): number {
+  return inputTexts.reduce((sum, text) => sum + estimateTokensFromText(text), 0);
+}
+
+export function getQueryQuotaConfig(): QuotaConfig {
+  return getQuotaConfig();
+}
+
+export function previewQueryQuota(estimatedInputTokens: number): QuotaCheckResult {
+  return evaluateQueryQuota(estimatedInputTokens, false);
+}
+
+export function consumeQueryQuota(estimatedInputTokens: number): QuotaCheckResult {
+  return evaluateQueryQuota(estimatedInputTokens, true);
 }
