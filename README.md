@@ -242,6 +242,42 @@ Local references:
 - checklist plan: `docs/features/query-rewrite/CHECKLIST_PLAN.md`
 - test queries: `docs/features/query-rewrite/TEST_QUERIES.md`
 
+## Ambiguity Gatekeeper Configuration
+
+The ambiguity gatekeeper is a chat-front-door check that decides whether `POST /api/chat` should proceed directly or ask one targeted clarifying question before retrieval.
+
+Set these environment variables to control the gatekeeper:
+
+- `AMBIGUITY_GATEKEEPER_ENABLED` (default: `false`)
+- `AMBIGUITY_GATEKEEPER_API_KEY` (optional; falls back to `GEMINI_API_KEY`)
+- `AMBIGUITY_GATEKEEPER_MODEL_NAME` (default: `gemini-2.5-flash`)
+- `AMBIGUITY_GATEKEEPER_MODEL_API_VERSION` (default: `v1beta`)
+- `AMBIGUITY_GATEKEEPER_TIMEOUT_MS` (default: `2000`)
+- `AMBIGUITY_GATEKEEPER_DEBUG` (default: `false`)
+
+How the current codebase uses these settings:
+
+- `AMBIGUITY_GATEKEEPER_ENABLED` is the rollout master switch and keeps the feature disabled by default.
+- `AMBIGUITY_GATEKEEPER_API_KEY` lets ambiguity checks use a dedicated Gemini API key; when unset, the gatekeeper falls back to `GEMINI_API_KEY`.
+- `AMBIGUITY_GATEKEEPER_MODEL_NAME` and `AMBIGUITY_GATEKEEPER_MODEL_API_VERSION` choose the Gemini model used for the gatekeeper request.
+- `AMBIGUITY_GATEKEEPER_TIMEOUT_MS` bounds the single-shot gatekeeper call so the request fails open instead of blocking chat.
+- `AMBIGUITY_GATEKEEPER_DEBUG` is reserved for server-side diagnostics in phase 1 and does not change the public chat response shape.
+
+Behavior and composition:
+
+- The gatekeeper runs only in `POST /api/chat` before retrieval and answer generation in phase 1.
+- When it returns `clarify`, the route skips retrieval, query rewrite, hybrid retrieval, reranking, and `sendChatWithFallback(...)`, then returns a clarification payload with `sources: []`.
+- When it returns `proceed`, the normal chat path continues unchanged and downstream retrieval layers still compose in their existing order.
+- If the gatekeeper times out, errors, or produces malformed output, the route fails open to normal chat behavior.
+- Retained conversation history is passed into the gatekeeper so short follow-up questions can be disambiguated when context makes them clear.
+- `POST /api/retrieve` remains non-interactive in phase 1.
+
+Local references:
+
+- ambiguity gatekeeper PRD: `docs/features/ambiguity-gatekeeper/PRD.md`
+- checklist plan: `docs/features/ambiguity-gatekeeper/CHECKLIST_PLAN.md`
+- test queries: `docs/features/ambiguity-gatekeeper/TEST_QUERIES.md`
+
 ## Hybrid Retrieval Configuration
 
 Hybrid retrieval is an optional lexical + vector retrieval layer that runs inside `retrieveRelevantChunks(...)`. It composes with query rewrite and affects both `POST /api/retrieve` and `POST /api/chat`, but expanded hybrid diagnostics are only exposed through `POST /api/retrieve` when you explicitly request debug mode.

@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { sendChatWithFallback } from "@/lib/gemini";
+import { checkQueryAmbiguity } from "@/lib/chat/ambiguityGatekeeper";
+import { resolveAmbiguityGatekeeperConfig } from "@/lib/chat/ambiguityGatekeeperConfig";
 import { retrieveRelevantChunks } from "@/lib/retrieve";
-import { consumeQueryQuota, estimateQueryTokens, getQueryQuotaConfig } from "@/lib/quota/queryQuota";
+import {
+  consumeQueryQuota,
+  estimateQueryTokens,
+  getQueryQuotaConfig,
+  previewQueryQuota,
+} from "@/lib/quota/queryQuota";
 import { isEmbeddingQuotaExceededError } from "@/lib/quota/embeddingQuota";
 import { getChatRetrieveThreshold } from "@/lib/retrieve/config";
 import { requireUser } from "@/lib/auth/guards";
@@ -78,6 +85,85 @@ export async function POST(req: Request) {
     const firstUserIndex = rawHistory.findIndex((m) => m.role === "user");
     const history = firstUserIndex === -1 ? [] : rawHistory.slice(firstUserIndex);
     const historyTexts = history.map((entry) => entry.parts[0].text);
+
+    const preRetrievalEstimatedInputTokens = estimateQueryTokens([userMessage, ...historyTexts]);
+    const preRetrievalQuotaResult = previewQueryQuota(preRetrievalEstimatedInputTokens);
+
+    if (!preRetrievalQuotaResult.allowed) {
+      const config = getQueryQuotaConfig();
+      const response = NextResponse.json(
+        {
+          error: preRetrievalQuotaResult.message || "Query quota exceeded.",
+          reason: preRetrievalQuotaResult.reason,
+          limits: {
+            rpm: config.rpm,
+            tpm: config.tpm,
+            rpd: config.rpd,
+          },
+          retryAfterSeconds: preRetrievalQuotaResult.retryAfterSeconds,
+        },
+        { status: 429 }
+      );
+
+      if (preRetrievalQuotaResult.retryAfterSeconds) {
+        response.headers.set("Retry-After", String(preRetrievalQuotaResult.retryAfterSeconds));
+      }
+
+      return response;
+    }
+
+    const ambiguityGatekeeperConfig = resolveAmbiguityGatekeeperConfig();
+    let ambiguityDecision = {
+      decision: "proceed" as const,
+      reason: null,
+      clarificationQuestion: null,
+    };
+
+    try {
+      ambiguityDecision = await checkQueryAmbiguity(
+        {
+          userMessage,
+          history: historyTexts,
+        },
+        ambiguityGatekeeperConfig,
+      );
+    } catch (error) {
+      console.error("Ambiguity gatekeeper failed open:", error);
+    }
+
+    if (ambiguityDecision.decision === "clarify") {
+      const clarificationQuotaResult = consumeQueryQuota(preRetrievalEstimatedInputTokens);
+
+      if (!clarificationQuotaResult.allowed) {
+        const config = getQueryQuotaConfig();
+        const response = NextResponse.json(
+          {
+            error: clarificationQuotaResult.message || "Query quota exceeded.",
+            reason: clarificationQuotaResult.reason,
+            limits: {
+              rpm: config.rpm,
+              tpm: config.tpm,
+              rpd: config.rpd,
+            },
+            retryAfterSeconds: clarificationQuotaResult.retryAfterSeconds,
+          },
+          { status: 429 }
+        );
+
+        if (clarificationQuotaResult.retryAfterSeconds) {
+          response.headers.set("Retry-After", String(clarificationQuotaResult.retryAfterSeconds));
+        }
+
+        return response;
+      }
+
+      return NextResponse.json({
+        content: ambiguityDecision.clarificationQuestion,
+        sources: [],
+        needsClarification: true,
+        clarificationReason: ambiguityDecision.reason,
+      });
+    }
 
     // 1. Retrieve relevant chunks as context
     const relevantChunks = await retrieveRelevantChunks(userMessage, {
